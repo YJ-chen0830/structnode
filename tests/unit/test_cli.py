@@ -41,3 +41,80 @@ def test_model_validate_reports_topology_error(tmp_path: Path) -> None:
     payload = json.loads(result.output)
     assert payload["status"] == "error"
     assert any(e["code"] == "CEM-STAB-NOSUPPORT" for e in payload["errors"])
+
+
+def test_model_apply_writes_new_revision(tmp_path: Path) -> None:
+    command_path = tmp_path / "command.json"
+    command_path.write_text(
+        json.dumps({"op": "create_node", "id": "N3", "position": [3.0, 0.0, 0.0]}),
+        encoding="utf-8",
+    )
+    out = tmp_path / "out.cem.json"
+
+    result = runner.invoke(
+        app,
+        ["model", "apply", str(EXAMPLE), str(command_path), "--out", str(out), "--json"],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["status"] == "ok"
+    assert payload["artifact_paths"] == [str(out)]
+    assert out.exists()
+
+    new_data = json.loads(out.read_text(encoding="utf-8"))
+    assert any(n["id"] == "N3" for n in new_data["nodes"])
+    original_revision = json.loads(EXAMPLE.read_text(encoding="utf-8"))["revision"]
+    assert new_data["revision"] == original_revision + 1
+
+
+def test_model_apply_rejects_bad_command_leaves_out_untouched(tmp_path: Path) -> None:
+    command_path = tmp_path / "command.json"
+    command_path.write_text(
+        json.dumps(
+            {
+                "op": "create_element",
+                "id": "E404",
+                "type": "truss",
+                "node_ids": ["N1", "N404"],
+                "material_id": "M1",
+                "section_id": "S1",
+            }
+        ),
+        encoding="utf-8",
+    )
+    out = tmp_path / "out.cem.json"
+
+    result = runner.invoke(
+        app,
+        ["model", "apply", str(EXAMPLE), str(command_path), "--out", str(out), "--json"],
+    )
+    assert result.exit_code != 0
+    payload = json.loads(result.output)
+    assert payload["status"] == "error"
+    assert any(e["code"] == "CEM-REF-NODE" for e in payload["errors"])
+    assert not out.exists()
+
+
+def test_model_diff_detects_added_node(tmp_path: Path) -> None:
+    data = json.loads(EXAMPLE.read_text(encoding="utf-8"))
+    data["nodes"].append({"id": "N3", "position": [3.0, 0.0, 0.0]})
+    data["revision"] += 1
+    other = tmp_path / "other.cem.json"
+    other.write_text(json.dumps(data), encoding="utf-8")
+
+    result = runner.invoke(app, ["model", "diff", str(EXAMPLE), str(other), "--json"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["diff"]["nodes"]["added"] == ["N3"]
+
+
+def test_model_snapshot_writes_content_addressed_file(tmp_path: Path) -> None:
+    snap_dir = tmp_path / "snapshots"
+    result = runner.invoke(
+        app, ["model", "snapshot", str(EXAMPLE), "--dir", str(snap_dir), "--json"]
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    snapshot_path = Path(payload["artifact_paths"][0])
+    assert snapshot_path.exists()
+    assert snapshot_path.name == f"{payload['model_hash']}.cem.json"
