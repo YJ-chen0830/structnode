@@ -118,3 +118,52 @@ def test_model_snapshot_writes_content_addressed_file(tmp_path: Path) -> None:
     snapshot_path = Path(payload["artifact_paths"][0])
     assert snapshot_path.exists()
     assert snapshot_path.name == f"{payload['model_hash']}.cem.json"
+
+
+def test_analyze_native_solver_writes_results(tmp_path: Path) -> None:
+    out_dir = tmp_path / "out"
+    result = runner.invoke(
+        app, ["analyze", str(EXAMPLE), "--solver", "native", "--output", str(out_dir), "--json"]
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["status"] == "ok"
+    assert payload["artifact_paths"] == [str(out_dir / "results_AC1.json")]
+
+    results = json.loads((out_dir / "results_AC1.json").read_text(encoding="utf-8"))
+    assert results["solver_name"] == "structnode-native-2d"
+    assert "N2" in results["displacements"]
+    assert "N1" in results["reactions"]
+    assert "E1" in results["element_forces"]
+
+
+def test_analyze_unimplemented_solver_rejected(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app,
+        ["analyze", str(EXAMPLE), "--solver", "opensees", "--output", str(tmp_path), "--json"],
+    )
+    assert result.exit_code != 0
+    payload = json.loads(result.output)
+    assert payload["errors"][0]["code"] == "CEM-SOLVER-UNIMPLEMENTED"
+
+
+def test_analyze_rejects_mixed_element_model(tmp_path: Path) -> None:
+    data = json.loads(EXAMPLE.read_text(encoding="utf-8"))
+    data["elements"].append(
+        {
+            "id": "E2",
+            "type": "truss",
+            "node_ids": ["N1", "N2"],
+            "material_id": "M1",
+            "section_id": "S1",
+        }
+    )
+    mixed = tmp_path / "mixed.cem.json"
+    mixed.write_text(json.dumps(data), encoding="utf-8")
+
+    result = runner.invoke(
+        app, ["analyze", str(mixed), "--solver", "native", "--output", str(tmp_path), "--json"]
+    )
+    assert result.exit_code != 0
+    payload = json.loads(result.output)
+    assert payload["errors"][0]["code"] == "CEM-SOLVER-UNSUPPORTEDMODELERROR"

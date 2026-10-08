@@ -1,4 +1,6 @@
-"""StructNode CLI (Typer). S0/S1 scope: `structnode model validate|apply|diff|snapshot`."""
+"""StructNode CLI (Typer). S0/S1/S2 scope:
+`structnode model validate|apply|diff|snapshot`, `structnode analyze`.
+"""
 
 from __future__ import annotations
 
@@ -16,6 +18,12 @@ from structnode.core.validation import (
     findings_to_dicts,
     pydantic_errors_to_dicts,
     validate_topology,
+)
+from structnode.fem.assembly import UnsupportedModelError
+from structnode.fem.solvers import (
+    AnalysisCaseNotFoundError,
+    SingularStiffnessError,
+    solve_linear_static_2d,
 )
 
 app = typer.Typer(no_args_is_help=True)
@@ -193,6 +201,91 @@ def model_snapshot(
 
     snapshot_path = save_snapshot(cem, directory)
     result["artifact_paths"] = [str(snapshot_path)]
+    _emit(result, as_json)
+
+
+@app.command("analyze")
+def analyze(
+    path: Annotated[Path, typer.Argument(exists=True, readable=True)],
+    solver: Annotated[str, typer.Option("--solver")] = "native",
+    output: Annotated[Path, typer.Option("--output")] = Path("out"),
+    case: Annotated[
+        str | None,
+        typer.Option("--case", help="Analysis case id; default: every case in the model"),
+    ] = None,
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON")] = False,
+) -> None:
+    """Run a linear-static analysis, writing one results file per analysis case.
+
+    S2 scope: only `--solver native` (2D truss/frame) is implemented;
+    `opensees`/other backends are a later milestone.
+    """
+    cem, result = _load_cem_or_none(path)
+    if cem is None:
+        _emit(result, as_json)
+        raise typer.Exit(code=1)
+
+    if solver != "native":
+        result["status"] = "error"
+        result["errors"] = [
+            {
+                "code": "CEM-SOLVER-UNIMPLEMENTED",
+                "severity": "error",
+                "message": f"solver {solver!r} is not implemented yet (only 'native' in S2)",
+                "path": "<solver>",
+            }
+        ]
+        _emit(result, as_json)
+        raise typer.Exit(code=1)
+
+    case_ids = [case] if case is not None else [ac.id for ac in cem.analysis_cases]
+    if not case_ids:
+        result["status"] = "error"
+        result["errors"] = [
+            {
+                "code": "CEM-SOLVER-NO_ANALYSIS_CASE",
+                "severity": "error",
+                "message": "model has no analysis_cases to run",
+                "path": "<root>",
+            }
+        ]
+        _emit(result, as_json)
+        raise typer.Exit(code=1)
+
+    output.mkdir(parents=True, exist_ok=True)
+    artifact_paths: list[str] = []
+    errors: list[dict[str, Any]] = []
+
+    for case_id in case_ids:
+        try:
+            analysis_result = solve_linear_static_2d(cem, case_id)
+        except (AnalysisCaseNotFoundError, UnsupportedModelError, SingularStiffnessError) as exc:
+            errors.append(
+                {
+                    "code": "CEM-SOLVER-" + type(exc).__name__.upper(),
+                    "severity": "error",
+                    "message": str(exc),
+                    "path": f"analysis_cases[{case_id!r}]",
+                }
+            )
+            continue
+
+        out_path = output / f"results_{case_id}.json"
+        payload = {
+            "schema_version": "0.1",
+            "model_hash": cem.content_hash,
+            **analysis_result.to_dict(),
+        }
+        out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        artifact_paths.append(str(out_path))
+
+    result["artifact_paths"] = artifact_paths
+    if errors:
+        result["status"] = "error"
+        result["errors"] = errors
+        _emit(result, as_json)
+        raise typer.Exit(code=1)
+
     _emit(result, as_json)
 
 
