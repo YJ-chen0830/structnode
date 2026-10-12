@@ -1,0 +1,56 @@
+{
+  "schema_version": "0.1",
+  "model_id": "l-frame-3d-demo",
+  "revision": 0,
+  "units": { "length": "m", "force": "N" },
+  "coordinate_system": "global_cartesian_rh",
+  "nodes": [
+    { "id": "N1", "position": [0.0, 0.0, 0.0] },
+    { "id": "N2", "position": [0.0, 0.0, 3.0] },
+    { "id": "N3", "position": [4.0, 0.0, 3.0] }
+  ],
+  "materials": [
+    { "id": "M1", "E": 2.0e11, "G": 7.7e10, "rho": 7850.0 }
+  ],
+  "sections": [
+    {
+      "id": "S1",
+      "A": 0.01,
+      "Iy": 8.0e-6,
+      "Iz": 8.0e-6,
+      "J": 1.5e-5,
+      "local_axis_hint": [0.0, 1.0, 0.0]
+    }
+  ],
+  "elements": [
+    { "id": "E1", "type": "frame", "node_ids": ["N1", "N2"], "material_id": "M1", "section_id": "S1" },
+    { "id": "E2", "type": "frame", "node_ids": ["N2", "N3"], "material_id": "M1", "section_id": "S1" }
+  ],
+  "constraints": [
+    { "node_id": "N1", "dofs": [true, true, true, true, true, true] }
+  ],
+  "load_cases": [
+    { "id": "LC1", "description": "Out-of-plane tip load at the free end of the horizontal beam" }
+  ],
+  "loads": [
+    {
+      "id": "F1",
+      "case_id": "LC1",
+      "kind": "nodal_force",
+      "target_id": "N3",
+      "values": [0.0, 500.0, 0.0],
+      "coordinate_basis": "global"
+    }
+  ],
+  "analysis_cases": [
+    { "id": "AC1", "load_case_ids": ["LC1"], "method": "linear_static", "solver_options": {} }
+  ],
+  "metadata": {
+    "description": "L-shaped 3D frame: vertical column (N1-N2) + horizontal beam (N2-N3). A transverse load at N3 bends the beam out of its own plane and transmits torsion into the column -- a genuinely 3D load path, unlike the axis-aligned cantilever benchmarks."
+  },
+  "provenance": {
+    "created_by": "human",
+    "created_at": "2026-10-12T00:00:00Z",
+    "tool_version": "0.0.1"
+  }
+}

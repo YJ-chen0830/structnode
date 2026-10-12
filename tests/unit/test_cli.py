@@ -9,6 +9,7 @@ from structnode.cli.main import app
 
 runner = CliRunner()
 EXAMPLE = Path(__file__).resolve().parents[2] / "examples" / "cantilever.cem.json"
+EXAMPLE_3D = Path(__file__).resolve().parents[2] / "examples" / "cantilever_3d.cem.json"
 
 
 def test_model_validate_example_fixture_ok() -> None:
@@ -163,6 +164,34 @@ def test_analyze_rejects_mixed_element_model(tmp_path: Path) -> None:
 
     result = runner.invoke(
         app, ["analyze", str(mixed), "--solver", "native", "--output", str(tmp_path), "--json"]
+    )
+    assert result.exit_code != 0
+    payload = json.loads(result.output)
+    assert payload["errors"][0]["code"] == "CEM-SOLVER-UNSUPPORTEDMODELERROR"
+
+
+def test_analyze_native_3d_solver_writes_results(tmp_path: Path) -> None:
+    out_dir = tmp_path / "out3d"
+    result = runner.invoke(
+        app,
+        ["analyze", str(EXAMPLE_3D), "--solver", "native-3d", "--output", str(out_dir), "--json"],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["status"] == "ok"
+
+    results = json.loads((out_dir / "results_AC1.json").read_text(encoding="utf-8"))
+    assert results["solver_name"] == "structnode-native-3d"
+    assert "Uy" in results["displacements"]["N2"]
+    assert "Mz" in results["reactions"]["N1"]
+
+
+def test_analyze_native_3d_requires_shear_modulus(tmp_path: Path) -> None:
+    # EXAMPLE (the 2D fixture) has no G or nu on its material -- the 3D
+    # solver needs one to compute torsional stiffness.
+    result = runner.invoke(
+        app,
+        ["analyze", str(EXAMPLE), "--solver", "native-3d", "--output", str(tmp_path), "--json"],
     )
     assert result.exit_code != 0
     payload = json.loads(result.output)

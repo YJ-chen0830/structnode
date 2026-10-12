@@ -13,9 +13,11 @@ import numpy as np
 from numpy.linalg import LinAlgError
 
 from structnode.core.model import CEM
-from structnode.fem.assembly import Model2D, build_load_vector, build_model_2d
+from structnode.fem.assembly import Model2D, build_model_2d
+from structnode.fem.assembly import build_load_vector_2d as build_load_vector
 from structnode.fem.elements.frame2d import frame2d_local_end_forces
 from structnode.fem.elements.truss2d import truss2d_axial_force
+from structnode.fem.solvers.errors import AnalysisCaseNotFoundError, SingularStiffnessError
 
 SOLVER_NAME = "structnode-native-2d"
 SOLVER_VERSION = "0.1.0"
@@ -35,16 +37,6 @@ _DISPLACEMENT_COMPONENT_NAMES: dict[str, tuple[str, ...]] = {
     "truss": ("Ux", "Uy"),
     "frame": ("Ux", "Uy", "Rz"),
 }
-
-
-class AnalysisCaseNotFoundError(Exception):
-    pass
-
-
-class SingularStiffnessError(Exception):
-    """The free-DOF stiffness submatrix is singular/ill-conditioned --
-    an unrestrained mechanism or rigid-body mode that the coarse
-    topology check did not catch for this specific geometry."""
 
 
 @dataclass
