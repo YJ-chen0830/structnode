@@ -372,6 +372,38 @@ def compare(
         raise typer.Exit(code=1)
 
 
+mcp_app = typer.Typer(no_args_is_help=True)
+app.add_typer(mcp_app, name="mcp")
+
+
+@mcp_app.command("serve")
+def mcp_serve(
+    transport: Annotated[str, typer.Option("--transport")] = "stdio",
+) -> None:
+    """Serve the structnode MCP tools (model.*, analysis.*, report.*)."""
+    from structnode.mcp import mcp as mcp_server
+
+    if transport not in ("stdio", "sse", "streamable-http"):
+        typer.echo(f"error: unknown transport {transport!r}", err=True)
+        raise typer.Exit(code=1)
+    mcp_server.run(transport=transport)  # type: ignore[call-overload]
+
+
+api_app = typer.Typer(no_args_is_help=True)
+app.add_typer(api_app, name="api")
+
+
+@api_app.command("serve")
+def api_serve(
+    host: Annotated[str, typer.Option("--host")] = "127.0.0.1",
+    port: Annotated[int, typer.Option("--port")] = 8000,
+) -> None:
+    """Serve the structnode REST API (FastAPI/uvicorn)."""
+    import uvicorn
+
+    uvicorn.run("structnode.api:app", host=host, port=port)
+
+
 def _emit(result: dict[str, Any], as_json: bool) -> None:
     if as_json:
         typer.echo(json.dumps(result, indent=2, ensure_ascii=False))
