@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from structnode import service
@@ -19,6 +20,19 @@ app = FastAPI(
         "EXPERIMENTAL -- not for engineering design without independent review."
     ),
     version="0.1.0",
+)
+
+# Local-only tool: this API has no auth and is meant to be run on the same
+# machine as its caller (the web viewer's dev server, or a script). Allowing
+# any localhost/127.0.0.1 port (rather than a fixed one) avoids having to
+# keep this in sync with whatever port Vite happens to pick; it does not
+# widen access beyond "something already running on this machine."
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

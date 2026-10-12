@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { bounds, deformedNodePositions, elementSegments, nodePositions } from "../cem/geometry";
@@ -10,20 +10,61 @@ interface SceneViewerProps {
   scale: number;
 }
 
+export interface SceneViewerHandle {
+  /** A PNG data URL of the current frame, or null if not yet rendered.
+   * Used by the print report to embed a static snapshot instead of a
+   * live (non-printable) WebGL canvas. */
+  capture: () => string | null;
+  /** True once the canvas has drawn something other than the flat
+   * background -- a reliable "is there actually a frame worth
+   * capturing yet" signal. PNG byte size is *not* reliable for this:
+   * antialiasing noise on an otherwise-empty frame can compress to a
+   * similar size as one with real geometry. */
+  hasContent: () => boolean;
+}
+
 const UNDEFORMED_COLOR = 0x8a93a3;
 const DEFORMED_COLOR = 0xd14b3a;
 const NODE_COLOR = 0x4a5568;
+const BACKGROUND_RGB: [number, number, number] = [0xf6, 0xf3, 0xec];
+const BACKGROUND_TOLERANCE = 15;
 
 /** Imperative Three.js scene, not @react-three/fiber -- deliberately
  * minimal (docs/MASTER_PLAN.md: "Web-first 3D viewer; not source of
  * truth"), so this stays a thin rendering layer over the pure geometry
  * helpers in cem/geometry.ts rather than its own framework. */
-export function SceneViewer({ model, results, scale }: SceneViewerProps) {
+export const SceneViewer = forwardRef<SceneViewerHandle, SceneViewerProps>(function SceneViewer(
+  { model, results, scale },
+  ref,
+) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const groupRef = useRef<THREE.Group | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    capture: () => rendererRef.current?.domElement.toDataURL("image/png") ?? null,
+    hasContent: () => {
+      const canvas = rendererRef.current?.domElement;
+      if (!canvas) return false;
+      const probe = document.createElement("canvas");
+      probe.width = 32;
+      probe.height = 32;
+      const ctx = probe.getContext("2d");
+      if (!ctx) return false;
+      ctx.drawImage(canvas, 0, 0, 32, 32);
+      const data = ctx.getImageData(0, 0, 32, 32).data;
+      for (let i = 0; i < data.length; i += 4) {
+        const deviates = [0, 1, 2].some(
+          (c) => Math.abs(data[i + c] - BACKGROUND_RGB[c]) > BACKGROUND_TOLERANCE,
+        );
+        if (deviates) return true;
+      }
+      return false;
+    },
+  }));
 
   // One-time scene/camera/renderer/controls setup.
   useEffect(() => {
@@ -42,10 +83,14 @@ export function SceneViewer({ model, results, scale }: SceneViewerProps) {
     );
     cameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    // preserveDrawingBuffer: toDataURL() on a WebGL canvas can otherwise
+    // return a blank frame, since browsers are free to clear the buffer
+    // right after compositing.
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -78,6 +123,7 @@ export function SceneViewer({ model, results, scale }: SceneViewerProps) {
       controls.dispose();
       renderer.dispose();
       container.removeChild(renderer.domElement);
+      rendererRef.current = null;
     };
   }, []);
 
@@ -124,7 +170,7 @@ export function SceneViewer({ model, results, scale }: SceneViewerProps) {
   }, [model, results, scale]);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
-}
+});
 
 function addWireframe(
   group: THREE.Group,

@@ -1,103 +1,76 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import "./App.css";
-import { FileLoader } from "./components/FileLoader";
-import { InfoPanel } from "./components/InfoPanel";
-import { SceneViewer } from "./components/SceneViewer";
-import { suggestedScale } from "./cem/geometry";
-import { isAnalysisResults, isCemModel, type AnalysisResults, type CemModel } from "./cem/types";
+import { ApiStatus } from "./components/ApiStatus";
+import { AnalysisRunner } from "./builder/AnalysisRunner";
+import { ModelBuilder } from "./builder/ModelBuilder";
+import { ReportView } from "./report/ReportView";
+import { FileViewer } from "./viewer/FileViewer";
+import type { AnalysisResults } from "./cem/types";
+import type { FullCemModel } from "./cem/fullTypes";
+
+type Mode = "view" | "build" | "analyze" | "report";
 
 function App() {
-  const [model, setModel] = useState<CemModel | null>(null);
-  const [modelFileName, setModelFileName] = useState<string | null>(null);
-  const [results, setResults] = useState<AnalysisResults | null>(null);
-  const [resultsFileName, setResultsFileName] = useState<string | null>(null);
-  const [scale, setScale] = useState(1);
-  const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<Mode>("view");
+  const [builtModel, setBuiltModel] = useState<FullCemModel | null>(null);
+  const [builtResults, setBuiltResults] = useState<AnalysisResults | null>(null);
 
-  const autoScale = useMemo(() => (model ? suggestedScale(model, results) : 1), [model, results]);
-
-  const handleModelLoad = (text: string, fileName: string) => {
-    setError(null);
-    try {
-      const parsed: unknown = JSON.parse(text);
-      if (!isCemModel(parsed)) {
-        setError(`${fileName} doesn't look like a CEM model (missing nodes/elements/model_id).`);
-        return;
-      }
-      setModel(parsed);
-      setModelFileName(fileName);
-      setResults(null);
-      setResultsFileName(null);
-      setScale(1);
-    } catch {
-      setError(`${fileName} is not valid JSON.`);
-    }
-  };
-
-  const handleResultsLoad = (text: string, fileName: string) => {
-    setError(null);
-    try {
-      const parsed: unknown = JSON.parse(text);
-      if (!isAnalysisResults(parsed)) {
-        setError(`${fileName} doesn't look like an analyze results file (missing displacements).`);
-        return;
-      }
-      setResults(parsed);
-      setResultsFileName(fileName);
-      setScale(suggestedScale(model as CemModel, parsed));
-    } catch {
-      setError(`${fileName} is not valid JSON.`);
-    }
-  };
+  const builderActive = mode === "build" || mode === "analyze" || mode === "report";
 
   return (
     <div className="app">
       <header className="app__header">
-        <h1>StructNode Viewer</h1>
-        <p className="app__disclaimer">
-          EXPERIMENTAL -- display only, not an engineering-approved output. Not the source of
-          truth for the model (that's the CEM JSON file itself).
-        </p>
+        <div className="app__header-row">
+          <div>
+            <h1>StructNode Viewer</h1>
+            <p className="app__disclaimer">
+              EXPERIMENTAL -- not an engineering-approved output. Not the source of truth for the
+              model (that's the CEM JSON file, or whatever your REST API server has in memory).
+            </p>
+          </div>
+          <div className="app__header-actions">
+            <nav className="app__nav">
+              <button type="button" aria-pressed={mode === "view"} onClick={() => setMode("view")}>
+                View files
+              </button>
+              <button type="button" aria-pressed={builderActive} onClick={() => setMode("build")}>
+                Build model
+              </button>
+            </nav>
+            {builderActive && <ApiStatus />}
+          </div>
+        </div>
       </header>
 
-      <div className="app__body">
-        <aside className="app__sidebar">
-          <FileLoader label="CEM model (.cem.json)" onLoad={handleModelLoad} loadedFileName={modelFileName} />
-          <FileLoader
-            label="Analysis results (optional)"
-            onLoad={handleResultsLoad}
-            loadedFileName={resultsFileName}
-          />
-          {error && <p className="app__error">{error}</p>}
+      {mode === "view" && <FileViewer />}
 
-          {results && (
-            <div className="app__scale">
-              <label htmlFor="scale-slider">
-                Displacement scale: <span className="mono">{scale.toFixed(1)}x</span>
-              </label>
-              <input
-                id="scale-slider"
-                type="range"
-                min={0}
-                max={Math.max(autoScale * 4, 10)}
-                step={autoScale / 20 || 0.1}
-                value={scale}
-                onChange={(e) => setScale(Number(e.target.value))}
-              />
-            </div>
-          )}
+      {mode === "build" && (
+        <ModelBuilder
+          onReadyToAnalyze={(model) => {
+            setBuiltModel(model);
+            setMode("analyze");
+          }}
+        />
+      )}
 
-          <InfoPanel model={model} results={results} />
-        </aside>
+      {mode === "analyze" && builtModel && (
+        <AnalysisRunner
+          model={builtModel}
+          onBack={() => setMode("build")}
+          onResultsReady={(results) => {
+            setBuiltResults(results);
+            setMode("report");
+          }}
+        />
+      )}
 
-        <main className="app__viewport">
-          {model ? (
-            <SceneViewer model={model} results={results} scale={scale} />
-          ) : (
-            <div className="app__placeholder">No model loaded</div>
-          )}
-        </main>
-      </div>
+      {mode === "report" && builtModel && builtResults && (
+        <ReportView
+          model={builtModel}
+          results={builtResults}
+          onBack={() => setMode("analyze")}
+        />
+      )}
     </div>
   );
 }
