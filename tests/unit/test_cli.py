@@ -141,11 +141,24 @@ def test_analyze_native_solver_writes_results(tmp_path: Path) -> None:
 def test_analyze_unimplemented_solver_rejected(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
-        ["analyze", str(EXAMPLE), "--solver", "opensees", "--output", str(tmp_path), "--json"],
+        ["analyze", str(EXAMPLE), "--solver", "midas", "--output", str(tmp_path), "--json"],
     )
     assert result.exit_code != 0
     payload = json.loads(result.output)
     assert payload["errors"][0]["code"] == "CEM-SOLVER-UNIMPLEMENTED"
+
+
+def test_analyze_opensees_reports_unavailable_in_this_environment(tmp_path: Path) -> None:
+    # This project's dev/CI environment has no working openseespy install
+    # (see adapters/opensees/adapter.py) -- the CLI must say so clearly
+    # rather than crash or silently skip.
+    result = runner.invoke(
+        app,
+        ["analyze", str(EXAMPLE), "--solver", "opensees", "--output", str(tmp_path), "--json"],
+    )
+    assert result.exit_code != 0
+    payload = json.loads(result.output)
+    assert payload["errors"][0]["code"] == "CEM-SOLVER-OPENSEESUNAVAILABLEERROR"
 
 
 def test_analyze_rejects_mixed_element_model(tmp_path: Path) -> None:
@@ -196,3 +209,37 @@ def test_analyze_native_3d_requires_shear_modulus(tmp_path: Path) -> None:
     assert result.exit_code != 0
     payload = json.loads(result.output)
     assert payload["errors"][0]["code"] == "CEM-SOLVER-UNSUPPORTEDMODELERROR"
+
+
+def test_report_renders_markdown_from_analyze_output(tmp_path: Path) -> None:
+    out_dir = tmp_path / "out"
+    runner.invoke(app, ["analyze", str(EXAMPLE), "--output", str(out_dir), "--json"])
+    result = runner.invoke(app, ["report", str(out_dir / "results_AC1.json")])
+    assert result.exit_code == 0, result.output
+    assert "EXPERIMENTAL" in result.output
+    assert "## Displacements" in result.output
+
+
+def test_compare_identical_results_is_ok(tmp_path: Path) -> None:
+    out_dir = tmp_path / "out"
+    runner.invoke(app, ["analyze", str(EXAMPLE), "--output", str(out_dir), "--json"])
+    results = str(out_dir / "results_AC1.json")
+    result = runner.invoke(app, ["compare", results, results, "--json"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["ok"] is True
+
+
+def test_compare_divergent_results_fails(tmp_path: Path) -> None:
+    out_dir = tmp_path / "out"
+    runner.invoke(app, ["analyze", str(EXAMPLE), "--output", str(out_dir), "--json"])
+    results_path = out_dir / "results_AC1.json"
+    data = json.loads(results_path.read_text(encoding="utf-8"))
+    perturbed = out_dir / "results_perturbed.json"
+    data["displacements"]["N2"]["Uy"] *= 2
+    perturbed.write_text(json.dumps(data), encoding="utf-8")
+
+    result = runner.invoke(app, ["compare", str(results_path), str(perturbed), "--json"])
+    assert result.exit_code != 0
+    payload = json.loads(result.output)
+    assert payload["ok"] is False

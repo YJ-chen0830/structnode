@@ -12,6 +12,7 @@ from typing import Annotated, Any
 import typer
 from pydantic import TypeAdapter, ValidationError
 
+from structnode.adapters.opensees import OpenSeesUnavailableError, run_linear_static_opensees
 from structnode.core.editing import Command, CommandRejected, apply_command
 from structnode.core.model import CEM, diff_cem
 from structnode.core.snapshot import save_snapshot
@@ -29,6 +30,7 @@ from structnode.fem.solvers import (
     solve_linear_static_2d,
     solve_linear_static_3d,
 )
+from structnode.reporting import compare_results, render_markdown_report
 
 app = typer.Typer(no_args_is_help=True)
 model_app = typer.Typer(no_args_is_help=True)
@@ -223,7 +225,10 @@ def analyze(
 
     `--solver native`/`native-2d` uses the 2D truss/frame engine
     (planar models only); `--solver native-3d` uses the full 3D
-    engine. `opensees`/other backends are a later milestone.
+    engine; `--solver opensees` cross-checks against OpenSeesPy when
+    it's importable in this environment (reports
+    CEM-SOLVER-OPENSEESUNAVAILABLEERROR otherwise -- see
+    adapters/opensees/adapter.py for why that's common on Windows).
     """
     cem, result = _load_cem_or_none(path)
     if cem is None:
@@ -235,6 +240,8 @@ def analyze(
         solve_fn = solve_linear_static_2d
     elif solver == "native-3d":
         solve_fn = solve_linear_static_3d
+    elif solver == "opensees":
+        solve_fn = run_linear_static_opensees
     else:
         result["status"] = "error"
         result["errors"] = [
@@ -243,7 +250,7 @@ def analyze(
                 "severity": "error",
                 "message": (
                     f"solver {solver!r} is not implemented yet "
-                    "(only 'native'/'native-2d'/'native-3d')"
+                    "(only 'native'/'native-2d'/'native-3d'/'opensees')"
                 ),
                 "path": "<solver>",
             }
@@ -272,7 +279,12 @@ def analyze(
     for case_id in case_ids:
         try:
             analysis_result = solve_fn(cem, case_id)
-        except (AnalysisCaseNotFoundError, UnsupportedModelError, SingularStiffnessError) as exc:
+        except (
+            AnalysisCaseNotFoundError,
+            UnsupportedModelError,
+            SingularStiffnessError,
+            OpenSeesUnavailableError,
+        ) as exc:
             errors.append(
                 {
                     "code": "CEM-SOLVER-" + type(exc).__name__.upper(),
@@ -300,6 +312,64 @@ def analyze(
         raise typer.Exit(code=1)
 
     _emit(result, as_json)
+
+
+@app.command("report")
+def report(
+    results_path: Annotated[Path, typer.Argument(exists=True, readable=True)],
+    fmt: Annotated[str, typer.Option("--format")] = "markdown",
+    out: Annotated[Path | None, typer.Option("--out")] = None,
+) -> None:
+    """Render a human-readable report from an `analyze` results JSON file."""
+    if fmt != "markdown":
+        typer.echo(f"error: unsupported report format {fmt!r} (only 'markdown')", err=True)
+        raise typer.Exit(code=1)
+
+    data = json.loads(results_path.read_text(encoding="utf-8"))
+    markdown = render_markdown_report(data)
+
+    if out is not None:
+        out.write_text(markdown, encoding="utf-8")
+        typer.echo(f"wrote {out}")
+    else:
+        typer.echo(markdown)
+
+
+@app.command("compare")
+def compare(
+    results_a: Annotated[Path, typer.Argument(exists=True, readable=True)],
+    results_b: Annotated[Path, typer.Argument(exists=True, readable=True)],
+    tolerance: Annotated[
+        float, typer.Option("--tolerance", help="Max relative difference to count as agreement")
+    ] = 1e-6,
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON")] = False,
+) -> None:
+    """Compare two `analyze` results files quantity-by-quantity (e.g.
+    two solvers, or 2D vs 3D on the same planar model)."""
+    a = json.loads(results_a.read_text(encoding="utf-8"))
+    b = json.loads(results_b.read_text(encoding="utf-8"))
+    comparison = compare_results(a, b, tolerance=tolerance)
+
+    if as_json:
+        typer.echo(json.dumps(comparison.to_dict(), indent=2, ensure_ascii=False))
+    else:
+        typer.echo(
+            f"ok: {comparison.ok}  max_relative_diff: {comparison.max_relative_diff:.3e}  "
+            f"tolerance: {tolerance:.3e}"
+        )
+        if comparison.missing_in_a:
+            typer.echo(f"missing in A: {comparison.missing_in_a}")
+        if comparison.missing_in_b:
+            typer.echo(f"missing in B: {comparison.missing_in_b}")
+        for d in comparison.diffs:
+            if d.rel_diff is not None and d.rel_diff > tolerance:
+                typer.echo(
+                    f"  [diff] {d.category}.{d.key}.{d.component}: "
+                    f"{d.value_a} vs {d.value_b} (rel={d.rel_diff:.3e})"
+                )
+
+    if not comparison.ok:
+        raise typer.Exit(code=1)
 
 
 def _emit(result: dict[str, Any], as_json: bool) -> None:

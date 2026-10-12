@@ -39,7 +39,7 @@ class Model3D:
     warnings: list[str] = field(default_factory=list)
 
 
-def _require_homogeneous_element_kind(cem: CEM) -> ElementKind:
+def require_homogeneous_element_kind(cem: CEM) -> ElementKind:
     kinds = {el.type for el in cem.elements}
     if len(kinds) != 1:
         raise UnsupportedModelError(
@@ -69,7 +69,7 @@ def _frame_dofs(i: int, j: int) -> tuple[int, ...]:
 
 
 def build_model_3d(cem: CEM) -> Model3D:
-    element_kind = _require_homogeneous_element_kind(cem)
+    element_kind = require_homogeneous_element_kind(cem)
     dof_per_node = 3 if element_kind == "truss" else 6
 
     node_order = [n.id for n in cem.nodes]
