@@ -9,6 +9,7 @@ from structnode.fem.assembly.assemble2d import (
 from structnode.fem.assembly.assemble3d import (
     Model3D,
     build_model_3d,
+    require_homogeneous_element_kind,
     resolve_shear_modulus,
 )
 from structnode.fem.assembly.assemble3d import (
@@ -25,5 +26,6 @@ __all__ = [
     "build_load_vector_3d",
     "build_model_2d",
     "build_model_3d",
+    "require_homogeneous_element_kind",
     "resolve_shear_modulus",
 ]
