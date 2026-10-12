@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -22,8 +23,11 @@ from structnode.core.validation import (
 from structnode.fem.assembly import UnsupportedModelError
 from structnode.fem.solvers import (
     AnalysisCaseNotFoundError,
+    AnalysisResult2D,
+    AnalysisResult3D,
     SingularStiffnessError,
     solve_linear_static_2d,
+    solve_linear_static_3d,
 )
 
 app = typer.Typer(no_args_is_help=True)
@@ -217,21 +221,30 @@ def analyze(
 ) -> None:
     """Run a linear-static analysis, writing one results file per analysis case.
 
-    S2 scope: only `--solver native` (2D truss/frame) is implemented;
-    `opensees`/other backends are a later milestone.
+    `--solver native`/`native-2d` uses the 2D truss/frame engine
+    (planar models only); `--solver native-3d` uses the full 3D
+    engine. `opensees`/other backends are a later milestone.
     """
     cem, result = _load_cem_or_none(path)
     if cem is None:
         _emit(result, as_json)
         raise typer.Exit(code=1)
 
-    if solver != "native":
+    solve_fn: Callable[[CEM, str], AnalysisResult2D | AnalysisResult3D]
+    if solver in ("native", "native-2d"):
+        solve_fn = solve_linear_static_2d
+    elif solver == "native-3d":
+        solve_fn = solve_linear_static_3d
+    else:
         result["status"] = "error"
         result["errors"] = [
             {
                 "code": "CEM-SOLVER-UNIMPLEMENTED",
                 "severity": "error",
-                "message": f"solver {solver!r} is not implemented yet (only 'native' in S2)",
+                "message": (
+                    f"solver {solver!r} is not implemented yet "
+                    "(only 'native'/'native-2d'/'native-3d')"
+                ),
                 "path": "<solver>",
             }
         ]
@@ -258,7 +271,7 @@ def analyze(
 
     for case_id in case_ids:
         try:
-            analysis_result = solve_linear_static_2d(cem, case_id)
+            analysis_result = solve_fn(cem, case_id)
         except (AnalysisCaseNotFoundError, UnsupportedModelError, SingularStiffnessError) as exc:
             errors.append(
                 {

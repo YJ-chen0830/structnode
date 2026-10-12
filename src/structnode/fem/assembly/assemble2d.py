@@ -20,6 +20,7 @@ from numpy.typing import NDArray
 from scipy import sparse
 
 from structnode.core.model import CEM
+from structnode.fem.assembly.errors import UnsupportedModelError
 from structnode.fem.elements.frame2d import frame2d_global_stiffness
 from structnode.fem.elements.truss2d import truss2d_global_stiffness
 
@@ -27,10 +28,6 @@ PLANAR_EPS_M = 1e-9
 OUT_OF_PLANE_EPS = 1e-9
 ElementKind = Literal["truss", "frame"]
 SUPPORTED_LOAD_KINDS = frozenset({"nodal_force", "nodal_moment"})
-
-
-class UnsupportedModelError(Exception):
-    """Raised when the CEM model is outside the S2 native 2D solver's scope."""
 
 
 @dataclass
