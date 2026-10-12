@@ -1,0 +1,549 @@
+{
+  "$defs": {
+    "AnalysisCase": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "load_case_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Load Case Ids",
+          "type": "array"
+        },
+        "method": {
+          "const": "linear_static",
+          "title": "Method",
+          "type": "string"
+        },
+        "solver_options": {
+          "additionalProperties": true,
+          "title": "Solver Options",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "load_case_ids",
+        "method"
+      ],
+      "title": "AnalysisCase",
+      "type": "object"
+    },
+    "Element": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "material_id": {
+          "title": "Material Id",
+          "type": "string"
+        },
+        "node_ids": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Node Ids",
+          "type": "array"
+        },
+        "releases": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "boolean"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Releases"
+        },
+        "section_id": {
+          "title": "Section Id",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "truss",
+            "frame"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "node_ids",
+        "material_id",
+        "section_id"
+      ],
+      "title": "Element",
+      "type": "object"
+    },
+    "FrameSection": {
+      "properties": {
+        "A": {
+          "description": "Cross-sectional area, m^2",
+          "exclusiveMinimum": 0,
+          "title": "A",
+          "type": "number"
+        },
+        "Iy": {
+          "description": "Second moment of area about local y, m^4",
+          "exclusiveMinimum": 0,
+          "title": "Iy",
+          "type": "number"
+        },
+        "Iz": {
+          "description": "Second moment of area about local z, m^4",
+          "exclusiveMinimum": 0,
+          "title": "Iz",
+          "type": "number"
+        },
+        "J": {
+          "description": "Torsional constant, m^4",
+          "exclusiveMinimum": 0,
+          "title": "J",
+          "type": "number"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "local_axis_hint": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Local Axis Hint"
+        }
+      },
+      "required": [
+        "id",
+        "A",
+        "Iy",
+        "Iz",
+        "J"
+      ],
+      "title": "FrameSection",
+      "type": "object"
+    },
+    "Load": {
+      "properties": {
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "coordinate_basis": {
+          "enum": [
+            "global",
+            "local"
+          ],
+          "title": "Coordinate Basis",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "nodal_force",
+            "nodal_moment",
+            "member_distributed",
+            "gravity"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "case_id",
+        "kind",
+        "target_id",
+        "values",
+        "coordinate_basis"
+      ],
+      "title": "Load",
+      "type": "object"
+    },
+    "LoadCase": {
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "LoadCase",
+      "type": "object"
+    },
+    "Material": {
+      "properties": {
+        "E": {
+          "description": "Young's modulus, Pa",
+          "exclusiveMinimum": 0,
+          "title": "E",
+          "type": "number"
+        },
+        "G": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Shear modulus, Pa",
+          "title": "G"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "nu": {
+          "anyOf": [
+            {
+              "exclusiveMaximum": 0.5,
+              "exclusiveMinimum": -1.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Poisson's ratio",
+          "title": "Nu"
+        },
+        "rho": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Density, kg/m^3",
+          "title": "Rho"
+        }
+      },
+      "required": [
+        "id",
+        "E"
+      ],
+      "title": "Material",
+      "type": "object"
+    },
+    "Node": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "position": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "position"
+      ],
+      "title": "Node",
+      "type": "object"
+    },
+    "Provenance": {
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "created_by": {
+          "title": "Created By",
+          "type": "string"
+        },
+        "parent_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Revision"
+        },
+        "tool_version": {
+          "title": "Tool Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "created_by",
+        "created_at",
+        "tool_version"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "Support": {
+      "properties": {
+        "dofs": {
+          "maxItems": 6,
+          "minItems": 6,
+          "prefixItems": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "title": "Dofs",
+          "type": "array"
+        },
+        "node_id": {
+          "title": "Node Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "node_id",
+        "dofs"
+      ],
+      "title": "Support",
+      "type": "object"
+    },
+    "Units": {
+      "description": "Declares the unit convention the *source* data was authored in.\n\nInternal CEM storage is always SI; this is metadata for boundary\nconversion and audit, not a toggle that changes how stored numbers\nare interpreted.",
+      "properties": {
+        "force": {
+          "enum": [
+            "N",
+            "kN",
+            "lbf",
+            "kip"
+          ],
+          "title": "Force",
+          "type": "string"
+        },
+        "length": {
+          "enum": [
+            "m",
+            "mm",
+            "cm",
+            "ft",
+            "in"
+          ],
+          "title": "Length",
+          "type": "string"
+        }
+      },
+      "required": [
+        "length",
+        "force"
+      ],
+      "title": "Units",
+      "type": "object"
+    }
+  },
+  "description": "Canonical Engineering Model v0.1 root document.",
+  "properties": {
+    "analysis_cases": {
+      "items": {
+        "$ref": "#/$defs/AnalysisCase"
+      },
+      "title": "Analysis Cases",
+      "type": "array"
+    },
+    "constraints": {
+      "items": {
+        "$ref": "#/$defs/Support"
+      },
+      "title": "Constraints",
+      "type": "array"
+    },
+    "coordinate_system": {
+      "const": "global_cartesian_rh",
+      "title": "Coordinate System",
+      "type": "string"
+    },
+    "elements": {
+      "items": {
+        "$ref": "#/$defs/Element"
+      },
+      "title": "Elements",
+      "type": "array"
+    },
+    "load_cases": {
+      "items": {
+        "$ref": "#/$defs/LoadCase"
+      },
+      "title": "Load Cases",
+      "type": "array"
+    },
+    "loads": {
+      "items": {
+        "$ref": "#/$defs/Load"
+      },
+      "title": "Loads",
+      "type": "array"
+    },
+    "materials": {
+      "items": {
+        "$ref": "#/$defs/Material"
+      },
+      "title": "Materials",
+      "type": "array"
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "title": "Metadata",
+      "type": "object"
+    },
+    "model_id": {
+      "title": "Model Id",
+      "type": "string"
+    },
+    "nodes": {
+      "items": {
+        "$ref": "#/$defs/Node"
+      },
+      "title": "Nodes",
+      "type": "array"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "revision": {
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "default": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "sections": {
+      "items": {
+        "$ref": "#/$defs/FrameSection"
+      },
+      "title": "Sections",
+      "type": "array"
+    },
+    "units": {
+      "$ref": "#/$defs/Units"
+    }
+  },
+  "required": [
+    "model_id",
+    "revision",
+    "units",
+    "coordinate_system",
+    "nodes",
+    "materials",
+    "sections",
+    "elements",
+    "constraints",
+    "load_cases",
+    "loads",
+    "analysis_cases",
+    "provenance"
+  ],
+  "title": "CEM",
+  "type": "object"
+}
