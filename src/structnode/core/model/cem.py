@@ -119,13 +119,31 @@ class AnalysisCase(BaseModel):
     id: str
     load_case_ids: tuple[str, ...]
     method: AnalysisMethod
+    factors: tuple[float, ...] | None = None
+    """Optional per-load-case scale factors, same length and order as
+    `load_case_ids`. Lets one AnalysisCase represent a code load
+    combination (e.g. "1.2D + 1.6L") via linear superposition over
+    existing load cases, instead of duplicating load data under a scaled
+    copy. `None` means every load case contributes at 1.0 (unweighted
+    sum, the pre-factors behavior)."""
     solver_options: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _check_nonempty(self) -> AnalysisCase:
         if not self.load_case_ids:
             raise ValueError(f"AnalysisCase {self.id!r}: load_case_ids must not be empty")
+        if self.factors is not None and len(self.factors) != len(self.load_case_ids):
+            raise ValueError(
+                f"AnalysisCase {self.id!r}: factors must have the same length as "
+                f"load_case_ids ({len(self.load_case_ids)}), got {len(self.factors)}"
+            )
         return self
+
+    def case_factors(self) -> dict[str, float]:
+        """Map each of this case's load_case_ids to its scale factor."""
+        if self.factors is None:
+            return dict.fromkeys(self.load_case_ids, 1.0)
+        return dict(zip(self.load_case_ids, self.factors, strict=True))
 
 
 class Provenance(BaseModel):

@@ -98,7 +98,7 @@ def solve_linear_static_3d(cem: CEM, analysis_case_id: str) -> AnalysisResult3D:
         raise AnalysisCaseNotFoundError(f"No analysis case {analysis_case_id!r} in this model")
 
     model = build_model_3d(cem)
-    f_full = build_load_vector_3d(cem, model, analysis_case.load_case_ids)
+    f_full = build_load_vector_3d(cem, model, analysis_case.case_factors())
 
     restrained = _restrained_dofs(cem, model)
     free = [i for i in range(model.ndof) if i not in restrained]
