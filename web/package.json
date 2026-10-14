@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:pages": "tsc -b && vite build --mode gh-pages",
-    "deploy": "npm run build:pages && gh-pages -d dist",
+    "deploy": "npm run build && gh-pages -d dist",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run"

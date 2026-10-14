@@ -38,6 +38,13 @@ def test_github_pages_origin_allowed() -> None:
     assert resp.headers["access-control-allow-origin"] == "https://yj-chen0830.github.io"
 
 
+def test_custom_domain_origin_allowed() -> None:
+    resp = _preflight("https://structnode.juhongstructural.com")
+    assert (
+        resp.headers["access-control-allow-origin"] == "https://structnode.juhongstructural.com"
+    )
+
+
 def test_private_network_preflight_is_answered() -> None:
     resp = _preflight("https://yj-chen0830.github.io", private_network=True)
     assert resp.headers.get("access-control-allow-private-network") == "true"
