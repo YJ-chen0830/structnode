@@ -123,17 +123,32 @@ export const SQUARE_TUBE_PRESETS: SteelSectionPreset[] = RAW_SQUARE_TUBES.map((s
 }));
 
 /** Solid rectangular section, for RC members with no off-the-shelf catalog
- * entry: just a plug-the-numbers calculator, not a preset list.
+ * entry: just a plug-the-numbers calculator, not a preset list. `widthM`
+ * is the local-y extent, `depthM` the local-z extent (matching
+ * FrameSection's Iy=∫z²dA / Iz=∫y²dA convention) -- callers that also
+ * place rebar (SectionDiagram, the rebar quick-generator) must use the
+ * same two numbers as the bars' y/z coordinate range, unmodified.
+ *
+ * Iy/Iz are computed directly from width/depth, NOT reordered by
+ * magnitude -- an earlier version picked `b=min, h=max` before computing
+ * Iy/Iz, which silently swapped which dimension got cubed whenever the
+ * user's width happened to exceed their depth (e.g. a wide shallow slab
+ * got the stiffness of a narrow tall beam instead). `short`/`long` below
+ * are used ONLY for J's approximation formula, which genuinely requires
+ * short<=long for its correction term to behave -- that requirement
+ * doesn't apply to Iy/Iz.
+ *
  * J uses the standard closed-form approximation for a solid rectangle
  * (Timoshenko & Goodier, "Theory of Elasticity") -- exact only in the
  * thin-wall limit, otherwise accurate to a few percent for ordinary
  * depth/width ratios. */
 export function rectangularSection(widthM: number, depthM: number) {
-  const b = Math.min(widthM, depthM);
-  const h = Math.max(widthM, depthM);
-  const A = b * h;
-  const Iz = (b * h ** 3) / 12;
-  const Iy = (h * b ** 3) / 12;
-  const J = ((h * b ** 3) / 3) * (1 - 0.63 * (b / h) * (1 - b ** 4 / (12 * h ** 4)));
+  const A = widthM * depthM;
+  const Iz = (depthM * widthM ** 3) / 12;
+  const Iy = (widthM * depthM ** 3) / 12;
+  const short = Math.min(widthM, depthM);
+  const long = Math.max(widthM, depthM);
+  const J =
+    ((long * short ** 3) / 3) * (1 - 0.63 * (short / long) * (1 - short ** 4 / (12 * long ** 4)));
   return { A, Iy, Iz, J };
 }

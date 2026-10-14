@@ -22,6 +22,20 @@ export interface Material {
   nu?: number;
 }
 
+export interface RebarBar {
+  /** Local y-offset from the section centroid, m. */
+  y: number;
+  /** Local z-offset from the section centroid, m. */
+  z: number;
+  diameter: number;
+}
+
+export interface RebarLayout {
+  /** References a Material (the rebar steel) elsewhere in the model. */
+  material_id: string;
+  bars: RebarBar[];
+}
+
 export interface FrameSection {
   id: string;
   A: number;
@@ -29,6 +43,11 @@ export interface FrameSection {
   Iz: number;
   J: number;
   local_axis_hint?: [number, number, number];
+  /** Optional embedded reinforcement -- transformed-section stiffness
+   * contribution only, not a strength/capacity-design representation.
+   * `bars` must be mirror-symmetric about the local y=0 or z=0 axis
+   * (checked by the backend); see docs/ADR/0006-rebar-transformed-section.md. */
+  rebar?: RebarLayout;
 }
 
 export interface FullElement extends CemElement {

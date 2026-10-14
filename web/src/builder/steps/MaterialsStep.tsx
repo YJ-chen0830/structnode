@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { AddRowForm, DataTable, NumberField, SelectField, TextField } from "../fields";
-import { CONCRETE_MATERIAL_PRESETS } from "../presets/concreteMaterials";
+import { CONCRETE_MATERIAL_PRESETS, REBAR_GRADES } from "../presets/concreteMaterials";
 import { STEEL_MATERIAL_PRESETS } from "../presets/steelMaterials";
 import type { StepProps } from "./types";
 
 const MATERIAL_PRESETS = [
   ...STEEL_MATERIAL_PRESETS.map((p) => ({ key: p.id, label: p.label, E: p.E, G: p.G, rho: p.rho })),
   ...CONCRETE_MATERIAL_PRESETS.map((p) => ({ key: p.id, label: p.label, E: p.E, G: p.G, rho: p.rho })),
+  ...REBAR_GRADES.map((p) => ({ key: p.id, label: p.label, E: p.E, G: p.G, rho: p.rho })),
 ];
 
 export function MaterialsStep({ model, setModel }: StepProps) {
