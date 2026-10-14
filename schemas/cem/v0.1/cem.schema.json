@@ -429,7 +429,8 @@
             "N",
             "kN",
             "lbf",
-            "kip"
+            "kip",
+            "kgf"
           ],
           "title": "Force",
           "type": "string"

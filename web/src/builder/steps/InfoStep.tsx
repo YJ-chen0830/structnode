@@ -3,7 +3,7 @@ import type { Units } from "../../cem/fullTypes";
 import type { StepProps } from "./types";
 
 const LENGTH_UNITS = ["m", "mm", "cm", "ft", "in"];
-const FORCE_UNITS = ["N", "kN", "lbf", "kip"];
+const FORCE_UNITS = ["N", "kN", "lbf", "kip", "kgf"];
 
 export function InfoStep({ model, setModel }: StepProps) {
   return (

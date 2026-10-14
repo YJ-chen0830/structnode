@@ -11,7 +11,7 @@ import type { CemElement, CemNode } from "./types";
 
 export interface Units {
   length: "m" | "mm" | "cm" | "ft" | "in";
-  force: "N" | "kN" | "lbf" | "kip";
+  force: "N" | "kN" | "lbf" | "kip" | "kgf";
 }
 
 export interface Material {
