@@ -2,6 +2,7 @@ import { useState, type ReactElement } from "react";
 import { validateModel, type ValidateResult } from "../api/client";
 import { SceneViewer } from "../components/SceneViewer";
 import { emptyModel, type FullCemModel } from "../cem/fullTypes";
+import { downloadJson } from "./download";
 import { AnalysisStep } from "./steps/AnalysisStep";
 import { ElementsStep } from "./steps/ElementsStep";
 import { InfoStep } from "./steps/InfoStep";
@@ -77,6 +78,13 @@ export function ModelBuilder({ onReadyToAnalyze }: ModelBuilderProps) {
                 Next
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => downloadJson(`${model.model_id || "model"}.cem.json`, model)}
+              disabled={model.nodes.length === 0}
+            >
+              Download CEM model
+            </button>
           </div>
 
           {validation && (
