@@ -26,6 +26,10 @@ export function ApiStatus() {
     };
   }, []);
 
+  const isLocalDeployment =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
   if (status === "connected") {
     return (
       <div className="api-status api-status--ok">
@@ -38,11 +42,18 @@ export function ApiStatus() {
     <div className="api-status api-status--bad">
       <span className="api-status__dot" />
       {status === "checking" ? "Checking API connection…" : "API not reachable"}
-      {status === "disconnected" && (
+      {status === "disconnected" && isLocalDeployment && (
         <p className="api-status__help">
           Building and analyzing a model needs the local REST API. Run{" "}
           <code>uv run structnode api serve</code> and reload, or check that it's running at{" "}
           <code>{getApiBaseUrl()}</code>.
+        </p>
+      )}
+      {status === "disconnected" && !isLocalDeployment && (
+        <p className="api-status__help">
+          The hosted backend ({getApiBaseUrl()}) sleeps after inactivity on its free tier --
+          this can take 30-60s to wake up on the first request. Retrying automatically; if
+          this persists, the service may be down.
         </p>
       )}
     </div>

@@ -7,11 +7,24 @@
 import type { AnalysisResults } from "../cem/types";
 import type { FullCemModel } from "../cem/fullTypes";
 
-const DEFAULT_BASE_URL = "http://127.0.0.1:8000";
+const LOCAL_DEFAULT_BASE_URL = "http://127.0.0.1:8000";
+// Deployed backend for the GitHub Pages / juhongstructural.com build of the
+// frontend, where there's no local `structnode api serve` to point at by
+// default. Local dev (hostname is localhost/127.0.0.1) always defaults to
+// the local API instead -- this only applies to a hosted deployment.
+const DEPLOYED_DEFAULT_BASE_URL = "https://structnode-api.onrender.com";
 const STORAGE_KEY = "structnode_api_base_url";
 
+function defaultBaseUrl(): string {
+  const { hostname } = window.location;
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]") {
+    return LOCAL_DEFAULT_BASE_URL;
+  }
+  return DEPLOYED_DEFAULT_BASE_URL;
+}
+
 export function getApiBaseUrl(): string {
-  return localStorage.getItem(STORAGE_KEY) ?? DEFAULT_BASE_URL;
+  return localStorage.getItem(STORAGE_KEY) ?? defaultBaseUrl();
 }
 
 export function setApiBaseUrl(url: string): void {

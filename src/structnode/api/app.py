@@ -23,16 +23,26 @@ app = FastAPI(
 )
 
 # Local-only tool: this API has no auth and is meant to be run on the same
-# machine as its caller (the web viewer's dev server, or a script). Allowing
-# any localhost/127.0.0.1 port (rather than a fixed one) avoids having to
-# keep this in sync with whatever port Vite happens to pick; it does not
-# widen access beyond "something already running on this machine."
+# machine as its caller. Two allowed origin shapes:
+# - any localhost/127.0.0.1 port, for the Vite dev server (avoids having to
+#   keep this in sync with whatever port Vite happens to pick);
+# - the project's GitHub Pages deployment, for the case where the *frontend*
+#   is hosted publicly but still talks to a REST API the user runs locally
+#   (the backend itself is never deployed -- see web/README or the deploy
+#   script). Neither widens access beyond "something already running on
+#   this machine, reached by a page the user opened themselves."
+# allow_private_network=True answers Chrome's Private Network Access
+# preflight (Access-Control-Request-Private-Network), which a non-localhost
+# HTTPS origin like the GitHub Pages one must pass before the browser will
+# even attempt the real request to a loopback address -- without this, such
+# requests hang indefinitely rather than failing visibly.
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
+    allow_origin_regex=r"^(http://(localhost|127\.0\.0\.1):\d+|https://yj-chen0830\.github\.io)$",
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_private_network=True,
 )
 
 

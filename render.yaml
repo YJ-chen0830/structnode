@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: structnode-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /capabilities
+    envVars:
+      - key: PORT
+        value: 8000
