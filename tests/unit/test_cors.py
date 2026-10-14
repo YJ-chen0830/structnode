@@ -45,6 +45,17 @@ def test_custom_domain_origin_allowed() -> None:
     )
 
 
+def test_custom_domain_origin_allowed_over_plain_http() -> None:
+    # GitHub Pages serves the custom domain over plain http until its
+    # HTTPS cert finishes auto-provisioning (can take up to ~24h after
+    # DNS first resolves) -- rejecting that origin in the meantime would
+    # make the site look broken for every visitor during that window.
+    resp = _preflight("http://structnode.juhongstructural.com")
+    assert (
+        resp.headers["access-control-allow-origin"] == "http://structnode.juhongstructural.com"
+    )
+
+
 def test_private_network_preflight_is_answered() -> None:
     resp = _preflight("https://yj-chen0830.github.io", private_network=True)
     assert resp.headers.get("access-control-allow-private-network") == "true"

@@ -28,7 +28,15 @@ app = FastAPI(
 #   keep this in sync with whatever port Vite happens to pick);
 # - the project's GitHub Pages deployment (pre-custom-domain / fallback);
 # - structnode.juhongstructural.com, the deployed frontend's custom domain
-#   (see web/public/CNAME).
+#   (see web/public/CNAME). Allowed over *both* http and https: GitHub
+#   Pages auto-provisions the custom domain's HTTPS cert some time after
+#   DNS first resolves (minutes to ~24h), so visitors land on the plain
+#   http:// origin in the meantime -- rejecting that origin would just
+#   make the site look broken during that window. Once the cert is live
+#   and "Enforce HTTPS" is on, GitHub redirects http->https at the edge
+#   so the http:// origin stops actually occurring in practice; it's left
+#   allowed here rather than removed, since nothing is gained by forbidding
+#   a request shape visitors can no longer produce.
 # allow_private_network=True answers Chrome's Private Network Access
 # preflight (Access-Control-Request-Private-Network), required whenever a
 # non-localhost HTTPS origin talks to a *locally run* copy of this API (the
@@ -40,7 +48,7 @@ app.add_middleware(
     allow_origin_regex=(
         r"^(http://(localhost|127\.0\.0\.1):\d+"
         r"|https://yj-chen0830\.github\.io"
-        r"|https://structnode\.juhongstructural\.com)$"
+        r"|https?://structnode\.juhongstructural\.com)$"
     ),
     allow_credentials=False,
     allow_methods=["*"],
