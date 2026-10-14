@@ -8,6 +8,8 @@ from structnode.core.model.cem import (
     Material,
     Node,
     Provenance,
+    RebarBar,
+    RebarLayout,
     Support,
 )
 from structnode.core.model.diff import CollectionDiff, ModelDiff, diff_cem
@@ -24,6 +26,8 @@ __all__ = [
     "ModelDiff",
     "Node",
     "Provenance",
+    "RebarBar",
+    "RebarLayout",
     "Support",
     "diff_cem",
 ]

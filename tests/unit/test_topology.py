@@ -53,3 +53,30 @@ def test_rotation_only_support_is_still_unstable(valid_cem_dict: dict[str, Any])
     result = validate_topology(cem)
     assert not result.ok
     assert any(f.code == "CEM-STAB-NOSUPPORT" for f in result.errors)
+
+
+def test_dangling_rebar_material_reference_is_error(valid_cem_dict: dict[str, Any]) -> None:
+    valid_cem_dict["sections"][0]["rebar"] = {
+        "material_id": "REBAR404",
+        "bars": [{"y": 0.0, "z": 0.0, "diameter": 0.02}],
+    }
+    cem = CEM.model_validate(valid_cem_dict)
+    result = validate_topology(cem)
+    assert not result.ok
+    assert any(f.code == "CEM-REF-REBAR-MATERIAL" for f in result.errors)
+
+
+def test_rebar_modulus_not_greater_than_element_material_is_warning(
+    valid_cem_dict: dict[str, Any],
+) -> None:
+    # M1's E is 2e11 (steel-range); give the "rebar" an even lower E so
+    # n <= 1 -- almost certainly the wrong material was picked.
+    valid_cem_dict["materials"].append({"id": "WEAK", "E": 1e10})
+    valid_cem_dict["sections"][0]["rebar"] = {
+        "material_id": "WEAK",
+        "bars": [{"y": 0.0, "z": 0.0, "diameter": 0.02}],
+    }
+    cem = CEM.model_validate(valid_cem_dict)
+    result = validate_topology(cem)
+    assert result.ok  # a warning, not an error
+    assert any(f.code == "CEM-REBAR-LOW-MODULUS" for f in result.warnings)

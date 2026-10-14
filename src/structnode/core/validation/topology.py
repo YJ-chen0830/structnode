@@ -59,6 +59,21 @@ def validate_topology(cem: CEM) -> ValidationResult:
     element_ids = {e.id for e in cem.elements}
     load_case_ids = {lc.id for lc in cem.load_cases}
     node_by_id = {n.id: n for n in cem.nodes}
+    material_by_id = {m.id: m for m in cem.materials}
+    section_by_id = {s.id: s for s in cem.sections}
+
+    # --- Rebar referential integrity --------------------------------
+    for i, sec in enumerate(cem.sections):
+        if sec.rebar is not None and sec.rebar.material_id not in material_ids:
+            errors.append(
+                Finding(
+                    "CEM-REF-REBAR-MATERIAL",
+                    Severity.ERROR,
+                    f"Section {sec.id!r} rebar references unknown material "
+                    f"{sec.rebar.material_id!r}",
+                    f"sections[{i}]",
+                )
+            )
 
     # --- Referential integrity -------------------------------------
     for i, el in enumerate(cem.elements):
@@ -91,6 +106,24 @@ def validate_topology(cem: CEM) -> ValidationResult:
                     path,
                 )
             )
+        elif el.material_id in material_ids:
+            section = section_by_id[el.section_id]
+            rebar = section.rebar
+            if rebar is not None and rebar.material_id in material_ids:
+                element_material = material_by_id[el.material_id]
+                rebar_material = material_by_id[rebar.material_id]
+                if rebar_material.E <= element_material.E:
+                    warnings.append(
+                        Finding(
+                            "CEM-REBAR-LOW-MODULUS",
+                            Severity.WARNING,
+                            f"Element {el.id!r}: rebar material {rebar.material_id!r} has "
+                            f"E={rebar_material.E:.3g} Pa, not greater than the element's own "
+                            f"material E={element_material.E:.3g} Pa -- modular ratio n<=1, "
+                            "double check the right material was picked for the rebar",
+                            path,
+                        )
+                    )
 
     for i, sup in enumerate(cem.constraints):
         if sup.node_id not in node_ids:

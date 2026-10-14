@@ -163,6 +163,17 @@
           ],
           "default": null,
           "title": "Local Axis Hint"
+        },
+        "rebar": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RebarLayout"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -379,6 +390,56 @@
         "tool_version"
       ],
       "title": "Provenance",
+      "type": "object"
+    },
+    "RebarBar": {
+      "properties": {
+        "y": {
+          "description": "Local y-offset from the section centroid, m",
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "description": "Local z-offset from the section centroid, m",
+          "title": "Z",
+          "type": "number"
+        },
+        "diameter": {
+          "description": "Bar diameter, m",
+          "exclusiveMinimum": 0,
+          "title": "Diameter",
+          "type": "number"
+        }
+      },
+      "required": [
+        "y",
+        "z",
+        "diameter"
+      ],
+      "title": "RebarBar",
+      "type": "object"
+    },
+    "RebarLayout": {
+      "description": "Reinforcement embedded in a FrameSection, for the transformed-section\nstiffness contribution (see `structnode.fem.rebar`) -- NOT a capacity/\nstrength-design representation (no development length, spacing code\nchecks, etc.; see ADR 0006 and MASTER_PLAN.md's \"detailed RC design\"\nexclusion, which this does not reopen).",
+      "properties": {
+        "material_id": {
+          "title": "Material Id",
+          "type": "string"
+        },
+        "bars": {
+          "items": {
+            "$ref": "#/$defs/RebarBar"
+          },
+          "minItems": 1,
+          "title": "Bars",
+          "type": "array"
+        }
+      },
+      "required": [
+        "material_id",
+        "bars"
+      ],
+      "title": "RebarLayout",
       "type": "object"
     },
     "Support": {

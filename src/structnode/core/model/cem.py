@@ -57,6 +57,90 @@ class Material(BaseModel):
         return self
 
 
+_REBAR_POS_TOL = 1e-6  # meters -- exact-ish coordinate/diameter match for mirror pairing
+
+
+class RebarBar(BaseModel):
+    y: float = Field(description="Local y-offset from the section centroid, m")
+    z: float = Field(description="Local z-offset from the section centroid, m")
+    diameter: float = Field(gt=0, description="Bar diameter, m")
+
+
+def _bars_mirror_symmetric(bars: tuple[RebarBar, ...], *, flip_y: bool) -> bool:
+    """True if every bar has a matching partner (same diameter) under
+    reflection across y=0 (flip_y=True, y -> -y) or z=0 (flip_y=False,
+    z -> -z) -- including a bar that lies exactly on the mirror axis,
+    which is its own partner. See RebarLayout's validator for why this
+    (rather than a looser "centroid is balanced" check) is required.
+    """
+    n = len(bars)
+    matched = [False] * n
+    for i in range(n):
+        if matched[i]:
+            continue
+        bar = bars[i]
+        ty = -bar.y if flip_y else bar.y
+        tz = bar.z if flip_y else -bar.z
+        found = False
+        for j in range(n):
+            if j == i or matched[j]:
+                continue
+            other = bars[j]
+            if (
+                abs(other.y - ty) < _REBAR_POS_TOL
+                and abs(other.z - tz) < _REBAR_POS_TOL
+                and abs(other.diameter - bar.diameter) < _REBAR_POS_TOL
+            ):
+                matched[i] = matched[j] = True
+                found = True
+                break
+        if not found and abs(ty - bar.y) < _REBAR_POS_TOL and abs(tz - bar.z) < _REBAR_POS_TOL:
+            matched[i] = True  # bar sits on the mirror axis -- its own partner
+            found = True
+        if not found:
+            return False
+    return True
+
+
+class RebarLayout(BaseModel):
+    """Reinforcement embedded in a FrameSection, for the transformed-section
+    stiffness contribution (see `structnode.fem.rebar`) -- NOT a capacity/
+    strength-design representation (no development length, spacing code
+    checks, etc.; see ADR 0006 and MASTER_PLAN.md's "detailed RC design"
+    exclusion, which this does not reopen).
+    """
+
+    material_id: str
+    """References a Material in the model (the rebar steel) -- looked up
+    together with the hosting element's own material to compute the
+    modular ratio n = E_rebar / E_element at assembly time."""
+    bars: tuple[RebarBar, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _check_mirror_symmetric(self) -> RebarLayout:
+        # Mirror symmetry about *either* local axis provably zeroes the
+        # product of inertia Iyz regardless of the modular ratio -- without
+        # it, the transformed section's principal axes would be rotated
+        # relative to y/z, which this project's frame elements (decoupled
+        # Iy/Iz only, no Iyz term) cannot represent. Silently ignoring that
+        # coupling would be exactly the "silently approximated" result
+        # MASTER_PLAN.md's non-negotiables forbid -- so an asymmetric
+        # layout is rejected outright rather than approximated.
+        if not (
+            _bars_mirror_symmetric(self.bars, flip_y=True)
+            or _bars_mirror_symmetric(self.bars, flip_y=False)
+        ):
+            raise ValueError(
+                "RebarLayout: bars must be mirror-symmetric about the local "
+                "y=0 or z=0 axis (every bar needs a same-diameter partner at "
+                "the reflected position, or lie exactly on the axis) -- an "
+                "asymmetric layout would have a nonzero product of inertia "
+                "(Iyz) that this project's decoupled Iy/Iz frame elements "
+                "cannot represent"
+            )
+        return self
+
+
 class FrameSection(BaseModel):
     id: str
     A: float = Field(gt=0, description="Cross-sectional area, m^2")
@@ -70,6 +154,11 @@ class FrameSection(BaseModel):
     global axis) and MUST report that fallback as a warning -- this
     model intentionally does not pick a silent default itself.
     """
+    rebar: RebarLayout | None = None
+    """Optional embedded reinforcement. When present, assembly computes an
+    effective (transformed-section) A/Iy/Iz for elements using this section
+    -- see `structnode.fem.rebar.effective_section_properties`. `A`, `Iy`,
+    `Iz` above remain the plain (gross, unreinforced) section properties."""
 
 
 class Element(BaseModel):

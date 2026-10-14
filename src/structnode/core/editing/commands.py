@@ -12,7 +12,13 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
-from structnode.core.model.cem import AnalysisMethod, CoordinateBasis, ElementType, LoadKind
+from structnode.core.model.cem import (
+    AnalysisMethod,
+    CoordinateBasis,
+    ElementType,
+    LoadKind,
+    RebarLayout,
+)
 
 
 class CreateNode(BaseModel):
@@ -38,6 +44,7 @@ class CreateFrameSection(BaseModel):
     Iz: float
     J: float
     local_axis_hint: tuple[float, float, float] | None = None
+    rebar: RebarLayout | None = None
 
 
 class CreateElement(BaseModel):
