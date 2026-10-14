@@ -22,6 +22,7 @@ export function ReportView({ model, results, onBack }: ReportViewProps) {
   const [snapshot, setSnapshot] = useState<string | null>(null);
   const [generatedOn] = useState(() => new Date().toLocaleDateString());
   const scale = suggestedScale(model, results);
+  const activeAnalysisCase = model.analysis_cases.find((ac) => ac.id === results.analysis_case_id);
 
   useEffect(() => {
     // Polls rather than waiting a single fixed delay: the off-screen
@@ -115,6 +116,87 @@ export function ReportView({ model, results, onBack }: ReportViewProps) {
           </dl>
         </header>
 
+        <section className="report__section">
+          <h2>Model definition</h2>
+          <p className="report__section-note">
+            Units: length in {model.units.length}, force in {model.units.force}.
+          </p>
+
+          <h3>Nodes</h3>
+          <SimpleTable
+            columns={["ID", "X", "Y", "Z"]}
+            rows={model.nodes.map((n) => [n.id, ...n.position.map(fmt)])}
+          />
+
+          <h3>Materials</h3>
+          <SimpleTable
+            columns={["ID", "E", "G", "ρ"]}
+            rows={model.materials.map((m) => [
+              m.id,
+              fmt(m.E),
+              m.G !== undefined ? fmt(m.G) : "—",
+              m.rho !== undefined ? fmt(m.rho) : "—",
+            ])}
+          />
+
+          <h3>Sections</h3>
+          <SimpleTable
+            columns={["ID", "A", "Iy", "Iz", "J"]}
+            rows={model.sections.map((s) => [s.id, fmt(s.A), fmt(s.Iy), fmt(s.Iz), fmt(s.J)])}
+          />
+
+          <h3>Elements</h3>
+          <SimpleTable
+            columns={["ID", "Type", "Node 1", "Node 2", "Material", "Section"]}
+            rows={model.elements.map((e) => [
+              e.id,
+              e.type,
+              e.node_ids[0],
+              e.node_ids[1],
+              e.material_id,
+              e.section_id,
+            ])}
+          />
+
+          <h3>Supports</h3>
+          <SimpleTable
+            columns={["Node", "Tx", "Ty", "Tz", "Rx", "Ry", "Rz"]}
+            rows={model.constraints.map((c) => [c.node_id, ...c.dofs.map((d) => (d ? "fixed" : "free"))])}
+          />
+        </section>
+
+        <section className="report__section">
+          <h2>Loads</h2>
+
+          <h3>Load cases</h3>
+          <SimpleTable
+            columns={["ID", "Description"]}
+            rows={model.load_cases.map((lc) => [lc.id, lc.description ?? "—"])}
+          />
+
+          <h3>Applied loads</h3>
+          <SimpleTable
+            columns={["ID", "Case", "Kind", "Target", "Values", "Basis"]}
+            rows={model.loads.map((l) => [
+              l.id,
+              l.case_id,
+              l.kind,
+              l.target_id,
+              l.values.map(fmt).join(", "),
+              l.coordinate_basis,
+            ])}
+          />
+
+          <h3>Analysis case combination</h3>
+          <SimpleTable
+            columns={["Load case", "Factor"]}
+            rows={activeAnalysisCase?.load_case_ids.map((id, i) => [
+              id,
+              activeAnalysisCase.factors ? fmt(activeAnalysisCase.factors[i]) : "1 (unweighted)",
+            ]) ?? [["—", "—"]]}
+          />
+        </section>
+
         {snapshot && (
           <figure className="report__figure">
             <img src={snapshot} alt={`Deformed shape of ${model.model_id}`} />
@@ -182,6 +264,48 @@ function ReportTable({
               <td>{key}</td>
               {columns.map((c) => (
                 <td key={c}>{c in row ? row[c].toPrecision(6) : ""}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** Same numeric formatting as ReportTable's result cells -- consistent
+ * precision whether a value came from the model definition (input) or
+ * the solver (output). */
+function fmt(value: number): string {
+  return value.toPrecision(6);
+}
+
+/** Plain string-grid table for model-definition sections (nodes,
+ * materials, elements, ...) -- these are CEM input data, not solver
+ * output, so unlike ReportTable there's no sparse per-row column set to
+ * reconcile; every row already has a value for every column. */
+function SimpleTable({ columns, rows }: { columns: string[]; rows: string[][] }) {
+  if (rows.length === 0) {
+    return <p className="report__empty">None.</p>;
+  }
+  return (
+    <div className="report__table-wrap">
+      <table className="report__table report__table--left">
+        <thead>
+          <tr>
+            {columns.map((c) => (
+              <th key={c}>{c}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            // Every call site's first column is that row's own ID
+            // (node/material/section/element/load-case ID), already
+            // unique within the table -- a natural React key.
+            <tr key={row[0]}>
+              {row.map((cell, j) => (
+                <td key={columns[j]}>{cell}</td>
               ))}
             </tr>
           ))}
