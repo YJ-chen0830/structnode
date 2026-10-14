@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { AddRowForm, DataTable, NumberField, TextField } from "../fields";
+import { NodeImport } from "../NodeImport";
 import type { StepProps } from "./types";
 
-export function NodesStep({ model, setModel }: StepProps) {
+export function NodesStep(props: StepProps) {
+  const { model, setModel } = props;
   const [id, setId] = useState("");
   const [x, setX] = useState<number | "">(0);
   const [y, setY] = useState<number | "">(0);
@@ -26,6 +28,7 @@ export function NodesStep({ model, setModel }: StepProps) {
     <div className="step">
       <h2>Nodes</h2>
       <p className="step__hint">Global coordinates, in the units declared on the Info step.</p>
+      <NodeImport {...props} />
       <AddRowForm onAdd={handleAdd} disabled={!canAdd}>
         <TextField label="ID" value={id} onChange={setId} placeholder="N1" />
         <NumberField label="X" value={x} onChange={setX} />

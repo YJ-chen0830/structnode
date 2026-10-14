@@ -11,7 +11,7 @@ kind other than `nodal_force`/`nodal_moment`, and any load with
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -124,14 +124,14 @@ def _require_in_plane(values: tuple[float, ...], label: str) -> tuple[float, flo
 
 
 def build_load_vector(
-    cem: CEM, model: Model2D, load_case_ids: Sequence[str]
+    cem: CEM, model: Model2D, case_factors: Mapping[str, float]
 ) -> NDArray[np.float64]:
     f = np.zeros(model.ndof, dtype=np.float64)
-    selected = set(load_case_ids)
 
     for load in cem.loads:
-        if load.case_id not in selected:
+        if load.case_id not in case_factors:
             continue
+        factor = case_factors[load.case_id]
         if load.kind not in SUPPORTED_LOAD_KINDS:
             raise UnsupportedModelError(
                 f"Load {load.id!r}: kind {load.kind!r} is not supported by the S2 "
@@ -149,8 +149,8 @@ def build_load_vector(
 
         if load.kind == "nodal_force":
             fx, fy = _require_in_plane(load.values, f"Load {load.id!r}")
-            f[base + 0] += fx
-            f[base + 1] += fy
+            f[base + 0] += factor * fx
+            f[base + 1] += factor * fy
         else:  # nodal_moment -- (Mx, My, Mz); unlike forces, the *in-plane*
             # component for a 2D (XY-plane) model is Mz, not Mx/My: a moment
             # vector about the global Z axis is what produces in-plane
@@ -170,6 +170,6 @@ def build_load_vector(
                     f"Load {load.id!r}: only the Mz component of nodal_moment is "
                     "representable by the S2 native 2D solver"
                 )
-            f[base + 2] += mz
+            f[base + 2] += factor * mz
 
     return f

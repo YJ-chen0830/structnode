@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { AddRowForm, DataTable, NumberField, SelectField, TextField } from "../fields";
 import type { LoadKind } from "../../cem/fullTypes";
+import { LIVE_LOAD_TABLE } from "../presets/loadCombinations";
 import type { StepProps } from "./types";
 
 const LOAD_KINDS: LoadKind[] = ["nodal_force", "nodal_moment", "member_distributed", "gravity"];
 const SOLVED_LOAD_KINDS = new Set(["nodal_force", "nodal_moment"]);
+const KGF_TO_N = 9.80665;
 
 export function LoadsStep({ model, setModel }: StepProps) {
   const [caseId, setCaseId] = useState("");
@@ -133,6 +135,32 @@ export function LoadsStep({ model, setModel }: StepProps) {
         }
         emptyMessage="No loads yet."
       />
+
+      <h3>活載重速查表 (建築技術規則建築構造編 第17條)</h3>
+      <p className="step__hint">
+        供查閱用的樓地板單位面積活載重 (kgf/m²)，乘上受載面積後再換算為本模型的集中力單位，才是
+        <code>nodal_force</code> 的輸入值。本表為常見用途之代表性子集，非窮舉；特殊用途請查閱條文全文。
+      </p>
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>組別</th>
+            <th>用途</th>
+            <th>kgf/m²</th>
+            <th>N/m²</th>
+          </tr>
+        </thead>
+        <tbody>
+          {LIVE_LOAD_TABLE.map((row) => (
+            <tr key={row.category}>
+              <td>{row.group}</td>
+              <td>{row.category}</td>
+              <td>{row.kgfPerM2}</td>
+              <td>{Math.round(row.kgfPerM2 * KGF_TO_N)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

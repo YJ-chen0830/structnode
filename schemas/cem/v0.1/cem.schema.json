@@ -18,6 +18,21 @@
           "title": "Method",
           "type": "string"
         },
+        "factors": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Factors"
+        },
         "solver_options": {
           "additionalProperties": true,
           "title": "Solver Options",
@@ -414,7 +429,8 @@
             "N",
             "kN",
             "lbf",
-            "kip"
+            "kip",
+            "kgf"
           ],
           "title": "Force",
           "type": "string"

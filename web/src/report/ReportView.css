@@ -129,8 +129,34 @@
   margin: 0 0 0.75rem;
 }
 
+.report__section h3 {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin: 1.1rem 0 0.4rem;
+}
+
+.report__section h3:first-of-type {
+  margin-top: 0;
+}
+
+.report__section-note {
+  font-size: 0.82rem;
+  color: var(--ink-dim);
+  margin: 0 0 0.75rem;
+}
+
+.report__empty {
+  font-size: 0.82rem;
+  color: var(--ink-dim);
+  margin: 0 0 0.75rem;
+}
+
 .report__table-wrap {
   overflow-x: auto;
+  margin-bottom: 0.75rem;
 }
 
 .report__table {
@@ -146,6 +172,11 @@
   border: 1px solid var(--line);
   padding: 0.35rem 0.6rem;
   text-align: right;
+}
+
+.report__table--left th,
+.report__table--left td {
+  text-align: left;
 }
 
 .report__table th:first-child,

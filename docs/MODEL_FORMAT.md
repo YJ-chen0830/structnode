@@ -60,7 +60,11 @@ Regenerate it whenever `cem.py` changes and the two drift.
   `target_id`, `values` (3-tuple), `coordinate_basis`
   (`"global" | "local"` — only `"global"` is solved today).
 - **`analysis_cases`**: `id`, `load_case_ids`, `method`
-  (`"linear_static"` only in v0.1), `solver_options`.
+  (`"linear_static"` only in v0.1), `factors` (optional, same length/order
+  as `load_case_ids` — per-case scale factors for linear superposition,
+  e.g. `[1.2, 1.6]` over `["D", "L"]` for a "1.2D + 1.6L" code load
+  combination; omitted or `null` means every case contributes at 1.0),
+  `solver_options`.
 
 ## What's intentionally excluded from v0.1
 

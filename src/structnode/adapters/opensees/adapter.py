@@ -163,22 +163,23 @@ def run_linear_static_opensees(cem: CEM, analysis_case_id: str) -> AnalysisResul
             )
 
     load_by_node: dict[str, list[float]] = {nid: [0.0] * dof_per_node for nid in node_ids}
-    selected_cases = set(analysis_case.load_case_ids)
+    case_factors = analysis_case.case_factors()
     for load in cem.loads:
-        if load.case_id not in selected_cases:
+        if load.case_id not in case_factors:
             continue
+        factor = case_factors[load.case_id]
         if load.coordinate_basis != "global":
             raise UnsupportedModelError(
                 f"Load {load.id!r}: only coordinate_basis='global' is supported"
             )
         if load.kind == "nodal_force":
-            load_by_node[load.target_id][0] += load.values[0]
-            load_by_node[load.target_id][1] += load.values[1]
-            load_by_node[load.target_id][2] += load.values[2]
+            load_by_node[load.target_id][0] += factor * load.values[0]
+            load_by_node[load.target_id][1] += factor * load.values[1]
+            load_by_node[load.target_id][2] += factor * load.values[2]
         elif load.kind == "nodal_moment" and dof_per_node == 6:
-            load_by_node[load.target_id][3] += load.values[0]
-            load_by_node[load.target_id][4] += load.values[1]
-            load_by_node[load.target_id][5] += load.values[2]
+            load_by_node[load.target_id][3] += factor * load.values[0]
+            load_by_node[load.target_id][4] += factor * load.values[1]
+            load_by_node[load.target_id][5] += factor * load.values[2]
         else:
             raise UnsupportedModelError(
                 f"Load {load.id!r}: kind {load.kind!r} unsupported by this adapter"

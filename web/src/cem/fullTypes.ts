@@ -11,7 +11,7 @@ import type { CemElement, CemNode } from "./types";
 
 export interface Units {
   length: "m" | "mm" | "cm" | "ft" | "in";
-  force: "N" | "kN" | "lbf" | "kip";
+  force: "N" | "kN" | "lbf" | "kip" | "kgf";
 }
 
 export interface Material {
@@ -62,6 +62,10 @@ export interface AnalysisCase {
   id: string;
   load_case_ids: string[];
   method: "linear_static";
+  /** Optional per-load-case scale factors, same length/order as
+   * load_case_ids -- lets one AnalysisCase represent a code load
+   * combination (e.g. "1.2D + 1.6L") instead of duplicating load data. */
+  factors?: number[];
   solver_options?: Record<string, never>;
 }
 

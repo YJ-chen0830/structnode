@@ -13,7 +13,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 LengthUnit = Literal["m", "mm", "cm", "ft", "in"]
-ForceUnit = Literal["N", "kN", "lbf", "kip"]
+ForceUnit = Literal["N", "kN", "lbf", "kip", "kgf"]
 
 _LENGTH_TO_M: dict[str, float] = {
     "m": 1.0,
@@ -28,6 +28,7 @@ _FORCE_TO_N: dict[str, float] = {
     "kN": 1e3,
     "lbf": 4.4482216152605,
     "kip": 4448.2216152605,
+    "kgf": 9.80665,  # standard gravity, exact by definition
 }
 
 

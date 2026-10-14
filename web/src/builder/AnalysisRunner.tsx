@@ -5,6 +5,7 @@ import { SceneViewer } from "../components/SceneViewer";
 import { suggestedScale } from "../cem/geometry";
 import type { AnalysisResults } from "../cem/types";
 import type { FullCemModel } from "../cem/fullTypes";
+import { downloadJson } from "./download";
 
 const SOLVERS = ["native-2d", "native-3d", "opensees"];
 
@@ -96,6 +97,20 @@ export function AnalysisRunner({ model, onBack, onResultsReady }: AnalysisRunner
             <InfoPanel model={model} results={results} />
             <button type="button" onClick={() => onResultsReady(results)}>
               Export report →
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadJson(`${model.model_id || "model"}.cem.json`, model)}
+            >
+              Download CEM model
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                downloadJson(`${model.model_id || "model"}.${analysisCaseId}.results.json`, results)
+              }
+            >
+              Download results
             </button>
           </>
         )}

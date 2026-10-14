@@ -102,7 +102,7 @@ def solve_linear_static_2d(cem: CEM, analysis_case_id: str) -> AnalysisResult2D:
         raise AnalysisCaseNotFoundError(f"No analysis case {analysis_case_id!r} in this model")
 
     model = build_model_2d(cem)
-    f_full = build_load_vector(cem, model, analysis_case.load_case_ids)
+    f_full = build_load_vector(cem, model, analysis_case.case_factors())
 
     restrained = _restrained_dofs(cem, model)
     free = [i for i in range(model.ndof) if i not in restrained]

@@ -11,7 +11,7 @@ supported), `member_distributed`/`gravity` loads, and
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -130,14 +130,14 @@ def build_model_3d(cem: CEM) -> Model3D:
 
 
 def build_load_vector(
-    cem: CEM, model: Model3D, load_case_ids: Sequence[str]
+    cem: CEM, model: Model3D, case_factors: Mapping[str, float]
 ) -> NDArray[np.float64]:
     f = np.zeros(model.ndof, dtype=np.float64)
-    selected = set(load_case_ids)
 
     for load in cem.loads:
-        if load.case_id not in selected:
+        if load.case_id not in case_factors:
             continue
+        factor = case_factors[load.case_id]
         if load.kind not in SUPPORTED_LOAD_KINDS:
             raise UnsupportedModelError(
                 f"Load {load.id!r}: kind {load.kind!r} is not supported by the S3 "
@@ -158,13 +158,13 @@ def build_load_vector(
         base = model.dof_per_node * node_i
 
         if load.kind == "nodal_force":
-            f[base : base + 3] += load.values
+            f[base : base + 3] += factor * np.asarray(load.values, dtype=np.float64)
         else:  # nodal_moment
             if model.element_kind != "frame":
                 raise UnsupportedModelError(
                     f"Load {load.id!r}: nodal_moment requires a frame model "
                     "(a truss-only 3D model has no rotational DOF)"
                 )
-            f[base + 3 : base + 6] += load.values
+            f[base + 3 : base + 6] += factor * np.asarray(load.values, dtype=np.float64)
 
     return f
