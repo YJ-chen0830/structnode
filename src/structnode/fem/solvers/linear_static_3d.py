@@ -20,6 +20,7 @@ from structnode.fem.assembly import (
 )
 from structnode.fem.elements.frame3d import frame3d_local_end_forces
 from structnode.fem.elements.truss3d import truss3d_axial_force
+from structnode.fem.rebar import effective_section_properties
 from structnode.fem.solvers.errors import AnalysisCaseNotFoundError, SingularStiffnessError
 
 SOLVER_NAME = "structnode-native-3d"
@@ -145,10 +146,13 @@ def solve_linear_static_3d(cem: CEM, analysis_case_id: str) -> AnalysisResult3D:
         i1, i2 = model.node_index[n1.id], model.node_index[n2.id]
         x1, y1, z1 = n1.position
         x2, y2, z2 = n2.position
+        # Must match the properties used in assembly, or recovered end forces
+        # disagree with the stiffness the displacements were solved against.
+        a_eff, iy_eff, iz_eff = effective_section_properties(section, material, materials)
 
         if model.element_kind == "truss":
             u_el = np.concatenate([u_full[3 * i1 : 3 * i1 + 3], u_full[3 * i2 : 3 * i2 + 3]])
-            n_force = truss3d_axial_force(material.E, section.A, x1, y1, z1, x2, y2, z2, u_el)
+            n_force = truss3d_axial_force(material.E, a_eff, x1, y1, z1, x2, y2, z2, u_el)
             element_forces[el.id] = {"N": n_force}
         else:
             g = resolve_shear_modulus(material)
@@ -156,9 +160,9 @@ def solve_linear_static_3d(cem: CEM, analysis_case_id: str) -> AnalysisResult3D:
             forces = frame3d_local_end_forces(
                 material.E,
                 g,
-                section.A,
-                section.Iy,
-                section.Iz,
+                a_eff,
+                iy_eff,
+                iz_eff,
                 section.J,
                 x1,
                 y1,
