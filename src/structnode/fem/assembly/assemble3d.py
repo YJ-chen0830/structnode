@@ -5,7 +5,7 @@ Unlike the 2D solver, there is no planarity restriction here -- full
 (Fx,Fy,Fz)/(Mx,My,Mz) loads and the full 6-DOF-per-node CEM support
 representation apply directly. The S2-era scope guards that still
 apply: a single element type per model (mixed truss/frame is not yet
-supported), `member_distributed`/`gravity` loads, and
+supported), frame end releases, `member_distributed`/`gravity` loads, and
 `coordinate_basis="local"` loads are all explicitly rejected.
 """
 
@@ -21,6 +21,7 @@ from scipy import sparse
 
 from structnode.core.model import CEM, Material
 from structnode.fem.assembly.errors import UnsupportedModelError
+from structnode.fem.assembly.guards import require_no_end_releases
 from structnode.fem.elements.frame3d import frame3d_global_stiffness
 from structnode.fem.elements.truss3d import truss3d_global_stiffness
 from structnode.fem.rebar import effective_section_properties
@@ -71,6 +72,7 @@ def _frame_dofs(i: int, j: int) -> tuple[int, ...]:
 
 def build_model_3d(cem: CEM) -> Model3D:
     element_kind = require_homogeneous_element_kind(cem)
+    require_no_end_releases(cem, "S3 native 3D solver")
     dof_per_node = 3 if element_kind == "truss" else 6
 
     node_order = [n.id for n in cem.nodes]

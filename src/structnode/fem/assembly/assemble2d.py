@@ -3,8 +3,8 @@ vectors, for a homogeneous (all-truss or all-frame) planar CEM model.
 
 S2 scope guard -- rejected outright rather than silently approximated
 (docs/MASTER_PLAN.md "No unsupported feature is silently approximated"):
-mixed truss/frame element types in one model, any node outside the
-z=0 plane, any load with a non-zero out-of-plane component, any load
+mixed truss/frame element types in one model, frame end releases, any
+node outside the z=0 plane, any load with a non-zero out-of-plane component, any load
 kind other than `nodal_force`/`nodal_moment`, and any load with
 `coordinate_basis="local"`.
 """
@@ -21,6 +21,7 @@ from scipy import sparse
 
 from structnode.core.model import CEM
 from structnode.fem.assembly.errors import UnsupportedModelError
+from structnode.fem.assembly.guards import require_no_end_releases
 from structnode.fem.elements.frame2d import frame2d_global_stiffness
 from structnode.fem.elements.truss2d import truss2d_global_stiffness
 from structnode.fem.rebar import effective_section_properties
@@ -71,6 +72,7 @@ def _frame_dofs(i: int, j: int) -> tuple[int, int, int, int, int, int]:
 def build_model_2d(cem: CEM) -> Model2D:
     element_kind = _require_homogeneous_element_kind(cem)
     _require_planar(cem)
+    require_no_end_releases(cem, "S2 native 2D solver")
 
     dof_per_node = 2 if element_kind == "truss" else 3
     node_order = [n.id for n in cem.nodes]

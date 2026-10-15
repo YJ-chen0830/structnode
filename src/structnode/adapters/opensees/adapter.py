@@ -41,7 +41,9 @@ from structnode.fem.assembly import (
     require_homogeneous_element_kind,
     resolve_shear_modulus,
 )
+from structnode.fem.assembly.guards import require_no_end_releases
 from structnode.fem.elements.frame3d import frame3d_local_axes
+from structnode.fem.rebar import effective_section_properties
 from structnode.fem.solvers import AnalysisCaseNotFoundError, AnalysisResult3D
 
 SOLVER_NAME = "opensees"
@@ -83,6 +85,7 @@ def capabilities() -> dict[str, Any]:
         "coordinate_basis": ["global"],
         "limitations": [
             "single element type per model (no mixed truss/frame)",
+            "no frame end releases",
             "no member_distributed or gravity loads",
             "no shear deformation",
             "local-axis orientation for Iy != Iz sections is unverified "
@@ -101,6 +104,7 @@ def run_linear_static_opensees(cem: CEM, analysis_case_id: str) -> AnalysisResul
         raise AnalysisCaseNotFoundError(f"No analysis case {analysis_case_id!r} in this model")
 
     element_kind = require_homogeneous_element_kind(cem)
+    require_no_end_releases(cem, "OpenSees adapter")
     dof_per_node = 3 if element_kind == "truss" else 6
 
     node_ids = [n.id for n in cem.nodes]
@@ -128,13 +132,16 @@ def run_linear_static_opensees(cem: CEM, analysis_case_id: str) -> AnalysisResul
             ops.uniaxialMaterial("Elastic", mat_tag[m.id], m.E)
         for i, el in enumerate(cem.elements, start=1):
             section = sections[el.section_id]
+            a_eff, _, _ = effective_section_properties(
+                section, materials[el.material_id], materials
+            )
             n1, n2 = el.node_ids
             ops.element(
                 "Truss",
                 i,
                 node_tag[n1],
                 node_tag[n2],
-                section.A,
+                a_eff,
                 mat_tag[el.material_id],
             )
     else:
@@ -142,6 +149,7 @@ def run_linear_static_opensees(cem: CEM, analysis_case_id: str) -> AnalysisResul
             material = materials[el.material_id]
             section = sections[el.section_id]
             g = resolve_shear_modulus(material)
+            a_eff, iy_eff, iz_eff = effective_section_properties(section, material, materials)
             n1_node, n2_node = nodes_by_id[el.node_ids[0]], nodes_by_id[el.node_ids[1]]
             _, _, local_z, _, _ = frame3d_local_axes(
                 *n1_node.position, *n2_node.position, section.local_axis_hint
@@ -153,12 +161,12 @@ def run_linear_static_opensees(cem: CEM, analysis_case_id: str) -> AnalysisResul
                 i,
                 node_tag[el.node_ids[0]],
                 node_tag[el.node_ids[1]],
-                section.A,
+                a_eff,
                 material.E,
                 g,
                 section.J,
-                section.Iy,
-                section.Iz,
+                iy_eff,
+                iz_eff,
                 transf_tag,
             )
 
