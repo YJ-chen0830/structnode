@@ -46,10 +46,14 @@ def effective_section_properties(
     y_bar = sum(da * bar.y for da, bar in zip(delta_areas, bars, strict=True)) / a_eff
     z_bar = sum(da * bar.z for da, bar in zip(delta_areas, bars, strict=True)) / a_eff
 
-    iy_eff = section.Iy + section.A * z_bar**2 + sum(
-        da * (bar.z - z_bar) ** 2 for da, bar in zip(delta_areas, bars, strict=True)
+    iy_eff = (
+        section.Iy
+        + section.A * z_bar**2
+        + sum(da * (bar.z - z_bar) ** 2 for da, bar in zip(delta_areas, bars, strict=True))
     )
-    iz_eff = section.Iz + section.A * y_bar**2 + sum(
-        da * (bar.y - y_bar) ** 2 for da, bar in zip(delta_areas, bars, strict=True)
+    iz_eff = (
+        section.Iz
+        + section.A * y_bar**2
+        + sum(da * (bar.y - y_bar) ** 2 for da, bar in zip(delta_areas, bars, strict=True))
     )
     return a_eff, iy_eff, iz_eff

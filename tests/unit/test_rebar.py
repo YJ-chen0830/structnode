@@ -79,9 +79,9 @@ def test_unequal_top_bottom_bars_shifts_centroid_correctly() -> None:
         RebarBar(y=0.1, z=z0, diameter=dia),
     ]
     a_gross, iy_gross = 0.15, 0.001125
-    section = _section(A=a_gross, Iy=iy_gross, Iz=iy_gross, rebar={
-        "material_id": "REBAR", "bars": bars
-    })
+    section = _section(
+        A=a_gross, Iy=iy_gross, Iz=iy_gross, rebar={"material_id": "REBAR", "bars": bars}
+    )
 
     a_eff, iy_eff, _iz_eff = effective_section_properties(section, concrete, materials)
 
