@@ -23,6 +23,7 @@ the agent, named as such) actually looked, not that review was implied.
 | 10 (extra) | Agent tool contract: no unsafe direct execution (`model_snapshot` never writes without `confirm=True`) | `test_model_snapshot_default_confirm_false_writes_nothing` (MCP), equivalent in `test_api.py` (REST) | `tests/unit/test_mcp_server.py`, `tests/unit/test_api.py` | n/a (asserts no file written) | Pass | Claude (agent), S5 |
 | 11 (extra) | 2D and 3D solvers agree exactly on an equivalent planar model | `test_2d_and_3d_solvers_agree_on_equivalent_planar_cantilever` | `tests/analytical/test_2d_3d_agreement.py` | rel. 1e-9 (displacements/reactions only; `element_forces` naming differs by design, see test docstring) | Pass | Claude (agent), S6 |
 | 12 (extra) | `AnalysisCase.factors`-weighted combination equals manual linear superposition of single-case solves, in both 2D and 3D | `test_2d_combo_equals_linear_superposition_of_factored_cases`, `test_3d_combo_equals_linear_superposition_of_factored_cases` | `tests/unit/test_load_combinations.py` | rel. (`pytest.approx` default) | Pass | Claude (agent), S8 — see ADR 0005 |
+| 13 (extra) | RC cantilever with embedded rebar: solved tip deflection matches `PL^3/(3*E_concrete*Iz_eff)` using the hand-computed transformed section, not the gross section | `test_rebar_transformed_section_changes_cantilever_deflection` | `tests/analytical/test_rebar_transformed_section.py` | rel. 1e-6 | Pass | Claude (agent), S9 — see ADR 0006 |
 
 ## Scope not covered by any benchmark (by design, not oversight)
 

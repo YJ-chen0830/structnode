@@ -275,6 +275,25 @@
   color: var(--accent);
 }
 
+.step__rebar {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.section-rebar-preview {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.section-diagram {
+  color: var(--ink-dim);
+  flex-shrink: 0;
+}
+
 .add-row-form {
   display: flex;
   flex-wrap: wrap;

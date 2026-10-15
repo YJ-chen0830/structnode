@@ -4,12 +4,17 @@
 // Poisson's ratio taken as 0.20 (standard assumption for concrete), so
 // G = E / (2*(1+0.20)) = E / 2.4.
 //
-// Rebar yield strengths (CNS 560) are included for reference only -- they
-// are a strength-design input, not an elastic-analysis one, so they are not
-// written into the CEM Material (which only carries E/G/rho). Use them when
-// labeling reinforcement, not when filling this wizard's Material fields.
+// CNS 560 reinforcing bar grades: fy is reference-only (strength design,
+// not used by this tool's elastic analysis), but E/G/rho ARE used -- the
+// rebar transformed-section feature (FrameSection.rebar, see
+// docs/ADR/0006-rebar-transformed-section.md) needs a real Material to
+// reference for the rebar steel's modular ratio. All CNS 560 grades share
+// the same elastic constants as structural steel (only fy differs by grade).
 const CONCRETE_RHO = 2300; // kg/m3
 const CONCRETE_NU = 0.2;
+const REBAR_E = 2.0e11; // Pa (200 GPa)
+const REBAR_G = 7.7e10; // Pa (77 GPa, from E/(2(1+nu)), nu=0.3)
+const REBAR_RHO = 7850; // kg/m3
 
 function ecFromFcPrimeMPa(fcPrimeMPa: number): number {
   return 4700 * Math.sqrt(fcPrimeMPa) * 1e6; // Pa
@@ -45,10 +50,30 @@ export const CONCRETE_MATERIAL_PRESETS: ConcreteMaterialPreset[] = (
   };
 });
 
-/** CNS 560 reinforcing bar grades -- fy for reference only (strength
- * design, not used by this tool's elastic analysis). */
-export const REBAR_GRADES: { id: string; fy: number }[] = [
-  { id: "SD280", fy: 280 },
-  { id: "SD420", fy: 420 },
-  { id: "SD490", fy: 490 },
-];
+export interface RebarGradePreset {
+  id: string;
+  label: string;
+  /** Guaranteed minimum yield strength, MPa -- reference only. */
+  fy: number;
+  E: number;
+  G: number;
+  rho: number;
+}
+
+/** CNS 560 reinforcing bar grades. `fy` is reference-only (strength
+ * design); `E`/`G`/`rho` are what the rebar transformed-section feature
+ * actually uses. */
+export const REBAR_GRADES: RebarGradePreset[] = (
+  [
+    [280, "SD280 (CNS 560)"],
+    [420, "SD420 (CNS 560，常用主筋)"],
+    [490, "SD490 (CNS 560，高強度)"],
+  ] as const
+).map(([fy, label]) => ({
+  id: `SD${fy}`,
+  label,
+  fy,
+  E: REBAR_E,
+  G: REBAR_G,
+  rho: REBAR_RHO,
+}));

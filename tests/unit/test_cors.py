@@ -40,9 +40,7 @@ def test_github_pages_origin_allowed() -> None:
 
 def test_custom_domain_origin_allowed() -> None:
     resp = _preflight("https://structnode.juhongstructural.com")
-    assert (
-        resp.headers["access-control-allow-origin"] == "https://structnode.juhongstructural.com"
-    )
+    assert resp.headers["access-control-allow-origin"] == "https://structnode.juhongstructural.com"
 
 
 def test_custom_domain_origin_allowed_over_plain_http() -> None:
@@ -51,9 +49,7 @@ def test_custom_domain_origin_allowed_over_plain_http() -> None:
     # DNS first resolves) -- rejecting that origin in the meantime would
     # make the site look broken for every visitor during that window.
     resp = _preflight("http://structnode.juhongstructural.com")
-    assert (
-        resp.headers["access-control-allow-origin"] == "http://structnode.juhongstructural.com"
-    )
+    assert resp.headers["access-control-allow-origin"] == "http://structnode.juhongstructural.com"
 
 
 def test_private_network_preflight_is_answered() -> None:

@@ -46,7 +46,14 @@ Regenerate it whenever `cem.py` changes and the two drift.
 - **`sections`**: `id`, `A`, `Iy`, `Iz`, `J` (SI, all > 0),
   `local_axis_hint` (optional 3-vector; see
   `docs/ADR/0003-local-axis-fallback-convention.md` for what happens
-  when it's omitted).
+  when it's omitted), `rebar` (optional: `material_id` + `bars` (each
+  `y`, `z`, `diameter`) -- transformed-section stiffness contribution
+  only, not a strength/capacity-design representation; see
+  `docs/ADR/0006-rebar-transformed-section.md`). `bars` must be
+  mirror-symmetric about the local y=0 or z=0 axis (checked at
+  validation time) -- an asymmetric layout would have a nonzero
+  product of inertia this project's decoupled Iy/Iz frame elements
+  can't represent.
 - **`elements`**: `id`, `type` (`"truss"` or `"frame"`), `node_ids`
   (exactly 2, distinct), `material_id`, `section_id`, `releases`
   (optional; `None` for truss, 12 booleans for frame).

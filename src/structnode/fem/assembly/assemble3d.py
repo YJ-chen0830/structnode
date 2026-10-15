@@ -23,6 +23,7 @@ from structnode.core.model import CEM, Material
 from structnode.fem.assembly.errors import UnsupportedModelError
 from structnode.fem.elements.frame3d import frame3d_global_stiffness
 from structnode.fem.elements.truss3d import truss3d_global_stiffness
+from structnode.fem.rebar import effective_section_properties
 
 ElementKind = Literal["truss", "frame"]
 SUPPORTED_LOAD_KINDS = frozenset({"nodal_force", "nodal_moment"})
@@ -87,20 +88,21 @@ def build_model_3d(cem: CEM) -> Model3D:
         n1, n2 = nodes_by_id[el.node_ids[0]], nodes_by_id[el.node_ids[1]]
         material = materials[el.material_id]
         section = sections[el.section_id]
+        a_eff, iy_eff, iz_eff = effective_section_properties(section, material, materials)
         x1, y1, z1 = n1.position
         x2, y2, z2 = n2.position
 
         if element_kind == "truss":
-            k_el = truss3d_global_stiffness(material.E, section.A, x1, y1, z1, x2, y2, z2)
+            k_el = truss3d_global_stiffness(material.E, a_eff, x1, y1, z1, x2, y2, z2)
             dofs: Sequence[int] = _truss_dofs(node_index[n1.id], node_index[n2.id])
         else:
             g = resolve_shear_modulus(material)
             k_el, warning = frame3d_global_stiffness(
                 material.E,
                 g,
-                section.A,
-                section.Iy,
-                section.Iz,
+                a_eff,
+                iy_eff,
+                iz_eff,
                 section.J,
                 x1,
                 y1,

@@ -23,6 +23,7 @@ from structnode.core.model import CEM
 from structnode.fem.assembly.errors import UnsupportedModelError
 from structnode.fem.elements.frame2d import frame2d_global_stiffness
 from structnode.fem.elements.truss2d import truss2d_global_stiffness
+from structnode.fem.rebar import effective_section_properties
 
 PLANAR_EPS_M = 1e-9
 OUT_OF_PLANE_EPS = 1e-9
@@ -86,14 +87,15 @@ def build_model_2d(cem: CEM) -> Model2D:
         n1, n2 = nodes_by_id[el.node_ids[0]], nodes_by_id[el.node_ids[1]]
         material = materials[el.material_id]
         section = sections[el.section_id]
+        a_eff, _iy_eff, iz_eff = effective_section_properties(section, material, materials)
         x1, y1 = n1.position[0], n1.position[1]
         x2, y2 = n2.position[0], n2.position[1]
 
         if element_kind == "truss":
-            k_el = truss2d_global_stiffness(material.E, section.A, x1, y1, x2, y2)
+            k_el = truss2d_global_stiffness(material.E, a_eff, x1, y1, x2, y2)
             dofs: Sequence[int] = _truss_dofs(node_index[n1.id], node_index[n2.id])
         else:
-            k_el = frame2d_global_stiffness(material.E, section.A, section.Iz, x1, y1, x2, y2)
+            k_el = frame2d_global_stiffness(material.E, a_eff, iz_eff, x1, y1, x2, y2)
             dofs = _frame_dofs(node_index[n1.id], node_index[n2.id])
 
         for a, gi in enumerate(dofs):

@@ -17,6 +17,7 @@ from structnode.fem.assembly import Model2D, build_model_2d
 from structnode.fem.assembly import build_load_vector_2d as build_load_vector
 from structnode.fem.elements.frame2d import frame2d_local_end_forces
 from structnode.fem.elements.truss2d import truss2d_axial_force
+from structnode.fem.rebar import effective_section_properties
 from structnode.fem.solvers.errors import AnalysisCaseNotFoundError, SingularStiffnessError
 
 SOLVER_NAME = "structnode-native-2d"
@@ -148,6 +149,9 @@ def solve_linear_static_2d(cem: CEM, analysis_case_id: str) -> AnalysisResult2D:
         section = sections[el.section_id]
         i1, i2 = model.node_index[n1.id], model.node_index[n2.id]
         x1, y1, x2, y2 = n1.position[0], n1.position[1], n2.position[0], n2.position[1]
+        # Must match the properties used in assembly, or recovered end forces
+        # disagree with the stiffness the displacements were solved against.
+        a_eff, _iy_eff, iz_eff = effective_section_properties(section, material, materials)
 
         if model.element_kind == "truss":
             u_el = np.array(
@@ -158,7 +162,7 @@ def solve_linear_static_2d(cem: CEM, analysis_case_id: str) -> AnalysisResult2D:
                     u_full[2 * i2 + 1],
                 ]
             )
-            n_force = truss2d_axial_force(material.E, section.A, x1, y1, x2, y2, u_el)
+            n_force = truss2d_axial_force(material.E, a_eff, x1, y1, x2, y2, u_el)
             element_forces[el.id] = {"N": n_force}
         else:
             u_el = np.array(
@@ -171,9 +175,7 @@ def solve_linear_static_2d(cem: CEM, analysis_case_id: str) -> AnalysisResult2D:
                     u_full[3 * i2 + 2],
                 ]
             )
-            forces = frame2d_local_end_forces(
-                material.E, section.A, section.Iz, x1, y1, x2, y2, u_el
-            )
+            forces = frame2d_local_end_forces(material.E, a_eff, iz_eff, x1, y1, x2, y2, u_el)
             element_forces[el.id] = {
                 "N1": float(forces[0]),
                 "V1": float(forces[1]),
