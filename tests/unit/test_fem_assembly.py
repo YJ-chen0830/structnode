@@ -86,18 +86,18 @@ def test_non_planar_model_rejected() -> None:
         solve_linear_static_2d(cem, "AC1")
 
 
-def test_member_distributed_load_rejected() -> None:
+def test_member_distributed_out_of_plane_rejected() -> None:
     data = _frame_cem()
     data["loads"][0] = {
         "id": "F1",
         "case_id": "LC1",
         "kind": "member_distributed",
         "target_id": "E1",
-        "values": [0.0, -500.0, 0.0],
+        "values": [0.0, 0.0, -500.0],
         "coordinate_basis": "global",
     }
     cem = CEM.model_validate(data)
-    with pytest.raises(UnsupportedModelError, match="member_distributed"):
+    with pytest.raises(UnsupportedModelError, match="out-of-plane"):
         solve_linear_static_2d(cem, "AC1")
 
 

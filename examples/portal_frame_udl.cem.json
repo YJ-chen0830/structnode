@@ -1,0 +1,49 @@
+{
+  "schema_version": "0.1",
+  "model_id": "portal-frame-udl",
+  "revision": 0,
+  "units": {"length": "m", "force": "kN"},
+  "coordinate_system": "global_cartesian_rh",
+  "nodes": [
+    {"id": "N1", "position": [0.0, 0.0, 0.0]},
+    {"id": "N2", "position": [0.0, 3.5, 0.0]},
+    {"id": "N3", "position": [6.0, 3.5, 0.0]},
+    {"id": "N4", "position": [6.0, 0.0, 0.0]}
+  ],
+  "materials": [
+    {"id": "RC24", "E": 23025000000.0, "nu": 0.2, "rho": 2400.0}
+  ],
+  "sections": [
+    {"id": "COL", "A": 0.16, "Iy": 0.0021333, "Iz": 0.0021333, "J": 0.0036, "local_axis_hint": [0.0, 0.0, 1.0]},
+    {"id": "BEAM", "A": 0.18, "Iy": 0.00135, "Iz": 0.00375, "J": 0.0031, "local_axis_hint": [0.0, 0.0, 1.0]}
+  ],
+  "elements": [
+    {"id": "C1", "type": "frame", "node_ids": ["N1", "N2"], "material_id": "RC24", "section_id": "COL"},
+    {"id": "B1", "type": "frame", "node_ids": ["N2", "N3"], "material_id": "RC24", "section_id": "BEAM"},
+    {"id": "C2", "type": "frame", "node_ids": ["N4", "N3"], "material_id": "RC24", "section_id": "COL"}
+  ],
+  "constraints": [
+    {"node_id": "N1", "dofs": [true, true, true, true, true, true]},
+    {"node_id": "N4", "dofs": [true, true, true, true, true, true]}
+  ],
+  "load_cases": [
+    {"id": "D", "description": "Self-weight + superimposed dead load on beam"},
+    {"id": "L", "description": "Live load on beam"}
+  ],
+  "loads": [
+    {"id": "SW", "case_id": "D", "kind": "gravity", "target_id": "*", "values": [0.0, -9.80665, 0.0], "coordinate_basis": "global"},
+    {"id": "SDL", "case_id": "D", "kind": "member_distributed", "target_id": "B1", "values": [0.0, -12000.0, 0.0], "coordinate_basis": "global"},
+    {"id": "LL", "case_id": "L", "kind": "member_distributed", "target_id": "B1", "values": [0.0, -9000.0, 0.0], "coordinate_basis": "global"}
+  ],
+  "analysis_cases": [
+    {"id": "1.2D+1.6L", "load_case_ids": ["D", "L"], "method": "linear_static", "factors": [1.2, 1.6]}
+  ],
+  "metadata": {
+    "description": "Fixed-base RC portal frame (0.4x0.4 columns, 0.3x0.6 beam) under self-weight, a beam UDL and a factored code combination -- exercises gravity and member_distributed loads (ADR 0007)."
+  },
+  "provenance": {
+    "created_by": "human",
+    "created_at": "2026-10-15T00:00:00Z",
+    "tool_version": "0.0.1"
+  }
+}

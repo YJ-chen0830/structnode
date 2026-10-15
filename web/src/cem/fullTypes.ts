@@ -67,6 +67,7 @@ export interface LoadCase {
 }
 
 export type LoadKind = "nodal_force" | "nodal_moment" | "member_distributed" | "gravity";
+export type CoordinateBasis = "global" | "local";
 
 export interface Load {
   id: string;
@@ -74,7 +75,7 @@ export interface Load {
   kind: LoadKind;
   target_id: string;
   values: [number, number, number];
-  coordinate_basis: "global" | "local";
+  coordinate_basis: CoordinateBasis;
 }
 
 export interface AnalysisCase {

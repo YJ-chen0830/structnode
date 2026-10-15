@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { AddRowForm, DataTable, NumberField, SelectField, TextField } from "../fields";
-import type { LoadKind } from "../../cem/fullTypes";
+import type { CoordinateBasis, LoadKind } from "../../cem/fullTypes";
 import { LIVE_LOAD_TABLE } from "../presets/loadCombinations";
 import type { StepProps } from "./types";
 
 const LOAD_KINDS: LoadKind[] = ["nodal_force", "nodal_moment", "member_distributed", "gravity"];
-const SOLVED_LOAD_KINDS = new Set(["nodal_force", "nodal_moment"]);
+const BASES: CoordinateBasis[] = ["global", "local"];
+const GRAVITY_ALL_ELEMENTS = "*";
+const STANDARD_GRAVITY = 9.80665;
 const KGF_TO_N = 9.80665;
 
 export function LoadsStep({ model, setModel }: StepProps) {
@@ -19,6 +21,7 @@ export function LoadsStep({ model, setModel }: StepProps) {
   const [vx, setVx] = useState<number | "">(0);
   const [vy, setVy] = useState<number | "">(0);
   const [vz, setVz] = useState<number | "">(0);
+  const [basis, setBasis] = useState<CoordinateBasis>("global");
 
   const canAddCase = caseId.trim() !== "" && !model.load_cases.some((c) => c.id === caseId.trim());
   const handleAddCase = () => {
@@ -34,7 +37,27 @@ export function LoadsStep({ model, setModel }: StepProps) {
     setCaseDescription("");
   };
 
-  const targetOptions = kind === "member_distributed" ? model.elements.map((e) => e.id) : model.nodes.map((n) => n.id);
+  const elementIds = model.elements.map((e) => e.id);
+  const targetOptions =
+    kind === "member_distributed"
+      ? elementIds
+      : kind === "gravity"
+        ? [GRAVITY_ALL_ELEMENTS, ...elementIds]
+        : model.nodes.map((n) => n.id);
+  // Only member_distributed may be given in member-local axes; nodal loads
+  // and gravity are global-only (ADR 0007).
+  const basisSelectable = kind === "member_distributed";
+
+  const handleKindChange = (next: LoadKind) => {
+    setKind(next);
+    setTargetId(next === "gravity" ? GRAVITY_ALL_ELEMENTS : "");
+    setBasis("global");
+    if (next === "gravity") {
+      setVx(0);
+      setVy(-STANDARD_GRAVITY);
+      setVz(0);
+    }
+  };
   const canAddLoad =
     loadId.trim() !== "" &&
     loadCaseId !== "" &&
@@ -55,7 +78,7 @@ export function LoadsStep({ model, setModel }: StepProps) {
           kind: kind as LoadKind,
           target_id: targetId,
           values: [Number(vx) || 0, Number(vy) || 0, Number(vz) || 0],
-          coordinate_basis: "global",
+          coordinate_basis: basisSelectable ? basis : "global",
         },
       ],
     }));
@@ -65,6 +88,7 @@ export function LoadsStep({ model, setModel }: StepProps) {
     setVx(0);
     setVy(0);
     setVz(0);
+    setBasis("global");
   };
 
   return (
@@ -96,9 +120,11 @@ export function LoadsStep({ model, setModel }: StepProps) {
 
       <h3>Loads</h3>
       <p className="step__hint">
-        Only <code>nodal_force</code>/<code>nodal_moment</code> with global basis are solved today
-        -- <code>member_distributed</code>/<code>gravity</code> are accepted into the model but
-        will be rejected by `analyze` (not silently dropped).
+        <code>member_distributed</code>: uniform load per unit member length (N/m), global or
+        member-local axes. <code>gravity</code>: acceleration (m/s², e.g. Y = -9.80665) applied to
+        each targeted element's material density × gross section area; target <code>*</code> means
+        every element (materials need a density). On truss elements both are lumped to the end
+        nodes and the analysis reports a warning.
       </p>
       <AddRowForm onAdd={handleAddLoad} disabled={!canAddLoad}>
         <TextField label="ID" value={loadId} onChange={setLoadId} placeholder="F1" />
@@ -108,8 +134,11 @@ export function LoadsStep({ model, setModel }: StepProps) {
           options={model.load_cases.map((c) => c.id)}
           onChange={setLoadCaseId}
         />
-        <SelectField label="Kind" value={kind} options={LOAD_KINDS} onChange={(v) => setKind(v as LoadKind)} />
+        <SelectField label="Kind" value={kind} options={LOAD_KINDS} onChange={(v) => handleKindChange(v as LoadKind)} />
         <SelectField label="Target" value={targetId} options={targetOptions} onChange={setTargetId} />
+        {basisSelectable && (
+          <SelectField label="Basis" value={basis} options={BASES} onChange={(v) => setBasis(v as CoordinateBasis)} />
+        )}
         <NumberField label="X" value={vx} onChange={setVx} />
         <NumberField label="Y" value={vy} onChange={setVy} />
         <NumberField label="Z" value={vz} onChange={setVz} />
@@ -121,13 +150,12 @@ export function LoadsStep({ model, setModel }: StepProps) {
           { key: "kind", label: "Kind" },
           { key: "target_id", label: "Target" },
           { key: "values", label: "Values" },
-          { key: "solved", label: "" },
+          { key: "coordinate_basis", label: "Basis" },
         ]}
         rows={model.loads}
         rowKey={(l) => l.id}
         renderCell={(l, key) => {
           if (key === "values") return l.values.join(", ");
-          if (key === "solved") return SOLVED_LOAD_KINDS.has(l.kind) ? "" : "⚠ not solved yet";
           return (l as unknown as Record<string, unknown>)[key] as string;
         }}
         onRemove={(l) =>

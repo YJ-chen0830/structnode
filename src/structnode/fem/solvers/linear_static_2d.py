@@ -103,7 +103,8 @@ def solve_linear_static_2d(cem: CEM, analysis_case_id: str) -> AnalysisResult2D:
         raise AnalysisCaseNotFoundError(f"No analysis case {analysis_case_id!r} in this model")
 
     model = build_model_2d(cem)
-    f_full = build_load_vector(cem, model, analysis_case.case_factors())
+    loads = build_load_vector(cem, model, analysis_case.case_factors())
+    f_full = loads.f
 
     restrained = _restrained_dofs(cem, model)
     free = [i for i in range(model.ndof) if i not in restrained]
@@ -176,6 +177,8 @@ def solve_linear_static_2d(cem: CEM, analysis_case_id: str) -> AnalysisResult2D:
                 ]
             )
             forces = frame2d_local_end_forces(material.E, a_eff, iz_eff, x1, y1, x2, y2, u_el)
+            if el.id in loads.fixed_end_local:
+                forces = forces - loads.fixed_end_local[el.id]
             element_forces[el.id] = {
                 "N1": float(forces[0]),
                 "V1": float(forces[1]),
@@ -193,4 +196,5 @@ def solve_linear_static_2d(cem: CEM, analysis_case_id: str) -> AnalysisResult2D:
         displacements=displacements,
         reactions=reactions,
         element_forces=element_forces,
+        warnings=list(loads.warnings),
     )

@@ -56,16 +56,22 @@ Regenerate it whenever `cem.py` changes and the two drift.
   can't represent.
 - **`elements`**: `id`, `type` (`"truss"` or `"frame"`), `node_ids`
   (exactly 2, distinct), `material_id`, `section_id`, `releases`
-  (optional; `None` for truss, 12 booleans for frame).
+  (optional; `None` for truss, 12 booleans for frame -- no solver
+  supports a `true` release yet, so any is rejected at analysis time;
+  see ADR 0007).
 - **`constraints`** (supports): `node_id`, `dofs` (6 booleans:
   `Tx,Ty,Tz,Rx,Ry,Rz`).
 - **`load_cases`**: `id`, `description` (optional).
 - **`loads`**: `id`, `case_id`, `kind`
-  (`"nodal_force" | "nodal_moment" | "member_distributed" | "gravity"`
-  — only the first two have a solver that handles them; see
-  `docs/VERIFICATION_MATRIX.md`'s "scope not covered" section),
+  (`"nodal_force" | "nodal_moment" | "member_distributed" | "gravity"`),
   `target_id`, `values` (3-tuple), `coordinate_basis`
-  (`"global" | "local"` — only `"global"` is solved today).
+  (`"global" | "local"`). Nodal loads target a node and must be
+  `"global"`. `member_distributed` targets an element: uniform N/m per
+  unit member length, in global or member-local axes. `gravity` targets
+  an element id or `"*"` (all elements): `values` is an acceleration
+  (m/s², global only) applied to `rho * A` (gross `A`). See
+  `docs/ADR/0007-uniform-member-loads.md`, including that truss elements
+  get these lumped to their end nodes, with a result warning.
 - **`analysis_cases`**: `id`, `load_case_ids`, `method`
   (`"linear_static"` only in v0.1), `factors` (optional, same length/order
   as `load_case_ids` — per-case scale factors for linear superposition,
