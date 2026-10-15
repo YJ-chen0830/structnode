@@ -5,8 +5,10 @@ Frame (the first product) is a trustworthy linear-elastic 2D/3D
 frame/truss analysis tool built around an open **Canonical Engineering
 Model (CEM)** — not a feature-complete commercial-solver clone.
 
-> **Status: Alpha (S0–S6 implemented).** Linear-static 2D/3D truss and
-> frame analysis, a CLI, an MCP server, a REST API, Markdown reports, an
+> **Status: Alpha (S0–S10 implemented).** Linear-static 2D/3D truss and
+> frame analysis (nodal, uniform member and self-weight loads; code load
+> combinations; elastic transformed-section rebar), a model-builder
+> wizard, a CLI, an MCP server, a REST API, Markdown reports, an
 > (environment-dependent, unverified-by-execution) OpenSees cross-check
 > adapter, and a minimal read-only web viewer. **Still experimental —
 > nothing in this repository should be used for engineering design

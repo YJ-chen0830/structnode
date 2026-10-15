@@ -14,7 +14,26 @@ aspirationally — if a box isn't checked, it isn't done.
 | S3 | 3D truss/frame solver, sparse assembly | Done | #4 |
 | S4 | CLI, result schema, Markdown reports, OpenSees adapter | Done, with a caveat (below) | #5 |
 | S5 | MCP server, REST API, permissions, model diff/dry-run | Done | #6 |
-| S6 | Minimal web viewer, examples, docs, alpha release | This PR | #7 |
+| S6 | Minimal web viewer, examples, docs, alpha release | Done | #7 |
+| S7 | Model-builder wizard + printable analysis report | Done | #8 |
+| S8 | Excel node import, Taiwan material/section presets, code load combinations (ADR 0005); kgf force unit; GitHub Pages frontend at structnode.juhongstructural.com + Render backend prep; CEM/results JSON download; full model in printed report | Done | #9 |
+| S9 | Embedded rebar via elastic transformed section (ADR 0006) + rebar UI and section diagram | Done | #10 |
+| S10 | `member_distributed`/`gravity` loads (ADR 0007); end releases rejected instead of ignored; end-force recovery fix for rebar sections | In review | #11 |
+
+S7-S10 go beyond the original 90-day plan (Master Plan section 8). As of
+2026-10-15, PRs #1-#10 are open and stacked (each targets the previous
+sprint's branch); none has been merged into `main` yet.
+
+**Fixed in S10, affecting earlier sprints:**
+- Element end-force recovery used the gross section while assembly used
+  the rebar-transformed one, so member forces on rebar sections were
+  scaled by I_gross/I_eff (about 16% low in the regression case).
+  Displacements and reactions were unaffected. The fix is on PR #10's
+  branch so it lands with the rebar feature. The OpenSees adapter had
+  the same gross-section issue and now uses the transformed properties.
+- `Element.releases` was accepted by the schema but ignored by every
+  solver, so released ends were silently analyzed as rigid. Any `true`
+  release is now rejected (`UnsupportedModelError`).
 
 **S4 caveat:** the OpenSees adapter (`src/structnode/adapters/opensees/`)
 is implemented against the documented OpenSeesPy API but has never
@@ -43,7 +62,7 @@ MIDAS REST adapter. Explicitly out of scope for the alpha.
 | Full pipeline reproducible on fresh clone without paid MIDAS | Met for the Python/CLI/MCP/REST/viewer path (`uv sync && bash scripts/preflight.sh`, `cd web && npm ci && npm run build`); MIDAS adapter was never implemented (P1+ scope), so nothing here depends on it |
 | CLI and MCP expose equivalent validated commands | Met — both are thin adapters over `src/structnode/service.py`; `tests/unit/test_mcp_server.py` exercises the real tool-calling path |
 | Every analysis output records input/solver provenance and errors | Met — `model_hash`, `solver_name`/`solver_version`, `warnings`, typed `errors` on every `analyze`/`analysis_run` result |
-| No unsupported feature is silently approximated | Met by design throughout — every scope guard (mixed element types, non-planar 2D models, `member_distributed`/`gravity` loads, unavailable OpenSees) raises a typed error instead of a silent fallback |
+| No unsupported feature is silently approximated | Met by design, with one gap found and closed in S10: frame end releases had been silently ignored, and are now rejected. Every other scope guard (mixed element types, non-planar 2D models, unavailable OpenSees) raises a typed error instead of a silent fallback. Truss member loads are lumped to the end nodes with an explicit result warning (ADR 0007). |
 | At least one third-party agent can create, analyze, and report a model using only published tools | **Not independently verified.** The MCP/REST tool contract exists and is tested via `MCPServer.call_tool`/FastAPI `TestClient`, but no agent outside this development process has exercised it end-to-end. Flagged as the one unmet/unverified criterion for this alpha. |
 
 ## What's next (post-alpha, not committed to a sprint)
@@ -54,8 +73,13 @@ MIDAS REST adapter. Explicitly out of scope for the alpha.
   the first real run surfaces.
 - Mixed truss/frame element types in one model (currently rejected by
   every solver as a documented S2-era scope guard).
-- `member_distributed` and `gravity` loads (currently rejected, not
-  approximated).
-- Code-splitting the web viewer bundle (Three.js dominates the current
-  ~775 KB bundle; fine for a local dev-server viewer, worth revisiting
-  before any hosted deployment).
+- Frame end releases (static condensation plus release-aware fixed-end
+  forces). Currently rejected.
+- Partial-span, trapezoidal and point-on-member loads. Only full-length
+  uniform loads are supported (ADR 0007).
+- Member loads in the OpenSees adapter (`eleLoad`), verifiable once
+  openseespy runs somewhere.
+- Moment/shear diagrams along members. Results report end forces only.
+- Code-splitting the web viewer bundle. Three.js dominates the ~775 KB
+  bundle, and the viewer is now hosted publicly, so this matters more
+  than it did when it was a local dev-server tool.
