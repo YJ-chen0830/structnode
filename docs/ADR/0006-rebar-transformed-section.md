@@ -99,10 +99,8 @@ special-case reject it.
   material's `E` isn't greater than the host element's own material `E`
   (`n <= 1`), which is almost always an accidentally-swapped material
   pick rather than a deliberately modeled case.
-- **Self-weight forward-compat trap**: `gravity`/`member_distributed`
-  loads are already rejected outright by both assemblers today, so there
-  is no live conflict. But when gravity loads are eventually
-  implemented, self-weight mass must be computed from the **gross** `A`
+- **Self-weight**: (`gravity` loads were rejected when this was
+  written; ADR 0007 implemented them following this rule.) Self-weight mass must be computed from the **gross** `A`
   (times concrete density), never `A_eff` -- the transformed area is a
   stiffness-equivalent abstraction, not a real quantity of material, and
   using it for mass would silently double-count the steel's weight.

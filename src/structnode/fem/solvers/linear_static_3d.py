@@ -99,7 +99,8 @@ def solve_linear_static_3d(cem: CEM, analysis_case_id: str) -> AnalysisResult3D:
         raise AnalysisCaseNotFoundError(f"No analysis case {analysis_case_id!r} in this model")
 
     model = build_model_3d(cem)
-    f_full = build_load_vector_3d(cem, model, analysis_case.case_factors())
+    loads = build_load_vector_3d(cem, model, analysis_case.case_factors())
+    f_full = loads.f
 
     restrained = _restrained_dofs(cem, model)
     free = [i for i in range(model.ndof) if i not in restrained]
@@ -173,6 +174,8 @@ def solve_linear_static_3d(cem: CEM, analysis_case_id: str) -> AnalysisResult3D:
                 section.local_axis_hint,
                 u_el,
             )
+            if el.id in loads.fixed_end_local:
+                forces = forces - loads.fixed_end_local[el.id]
             element_forces[el.id] = {
                 "N1": float(forces[0]),
                 "Vy1": float(forces[1]),
@@ -196,5 +199,5 @@ def solve_linear_static_3d(cem: CEM, analysis_case_id: str) -> AnalysisResult3D:
         displacements=displacements,
         reactions=reactions,
         element_forces=element_forces,
-        warnings=list(model.warnings),
+        warnings=list(model.warnings) + loads.warnings,
     )

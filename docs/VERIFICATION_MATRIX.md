@@ -24,11 +24,17 @@ the agent, named as such) actually looked, not that review was implied.
 | 11 (extra) | 2D and 3D solvers agree exactly on an equivalent planar model | `test_2d_and_3d_solvers_agree_on_equivalent_planar_cantilever` | `tests/analytical/test_2d_3d_agreement.py` | rel. 1e-9 (displacements/reactions only; `element_forces` naming differs by design, see test docstring) | Pass | Claude (agent), S6 |
 | 12 (extra) | `AnalysisCase.factors`-weighted combination equals manual linear superposition of single-case solves, in both 2D and 3D | `test_2d_combo_equals_linear_superposition_of_factored_cases`, `test_3d_combo_equals_linear_superposition_of_factored_cases` | `tests/unit/test_load_combinations.py` | rel. (`pytest.approx` default) | Pass | Claude (agent), S8 — see ADR 0005 |
 | 13 (extra) | RC cantilever with embedded rebar: solved tip deflection matches `PL^3/(3*E_concrete*Iz_eff)` using the hand-computed transformed section, not the gross section | `test_rebar_transformed_section_changes_cantilever_deflection` | `tests/analytical/test_rebar_transformed_section.py` | rel. 1e-6 | Pass | Claude (agent), S9 — see ADR 0006 |
+| 14 (extra) | Rebar cantilever end forces satisfy statics (V = P, M = PL) in 2D and 3D -- regression for end-force recovery once using gross section properties | `test_rebar_cantilever_end_forces_satisfy_statics` | `tests/analytical/test_rebar_transformed_section.py` | rel. 1e-6 | Pass | Claude (agent), S10 |
+| 15 (extra) | Uniform member load, 2D cantilever: tip deflection `wL^4/(8EI)`, tip rotation `wL^3/(6EI)`, fixed-end `V = wL`, `M = wL^2/2`, zero free-end forces | `test_2d_cantilever_udl_matches_closed_form` | `tests/analytical/test_member_loads.py` | rel. 1e-9 | Pass | Claude (agent), S10 — see ADR 0007 |
+| 16 (extra) | Uniform member load, fixed-fixed beam: midspan deflection `wL^4/(384EI)`, end moments `wL^2/12`, midspan moment `wL^2/24` | `test_2d_propped_fixed_fixed_beam_midspan_and_end_moments` | `tests/analytical/test_member_loads.py` | rel. 1e-9 | Pass | Claude (agent), S10 |
+| 17 (extra) | Uniform member load, 3D cantilever, both bending planes (local y and local z carry opposite fixed-end moment signs) | `test_3d_cantilever_udl_both_bending_planes` | `tests/analytical/test_member_loads.py` | rel. 1e-9 | Pass (mutation-checked: flipping the My sign fails it) | Claude (agent), S10 |
+| 18 (extra) | Member loads: local vs. global basis agree on an inclined member; 2D vs. 3D agree on a planar frame; gravity `w = rho*A*g` on `"*"` and single-element targets, scaled by load factors; truss lumping reports one warning per element | `test_2d_inclined_member_local_and_global_basis_agree`, `test_2d_and_3d_agree_on_planar_frame_with_udl`, `test_gravity_*`, `test_truss_member_load_lumped_with_warning` | `tests/analytical/test_member_loads.py` | rel. 1e-9 | Pass | Claude (agent), S10 |
 
 ## Scope not covered by any benchmark (by design, not oversight)
 
-Mixed truss/frame element types, `member_distributed`/`gravity` loads,
-`coordinate_basis="local"` loads, shear deformation, plates/shells, any
+Mixed truss/frame element types, frame end releases,
+`coordinate_basis="local"` nodal loads, partial-span or non-uniform
+member loads, shear deformation, plates/shells, any
 nonlinearity. All of these are explicitly rejected by the solvers
 (`UnsupportedModelError`) rather than silently approximated — there is
 nothing to benchmark because there is no code path that produces a

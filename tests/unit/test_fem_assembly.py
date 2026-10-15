@@ -9,7 +9,11 @@ import pytest
 
 from structnode.core.model import CEM
 from structnode.fem.assembly import UnsupportedModelError
-from structnode.fem.solvers import AnalysisCaseNotFoundError, solve_linear_static_2d
+from structnode.fem.solvers import (
+    AnalysisCaseNotFoundError,
+    solve_linear_static_2d,
+    solve_linear_static_3d,
+)
 
 
 def _frame_cem(**overrides: dict[str, Any]) -> dict[str, Any]:
@@ -82,18 +86,18 @@ def test_non_planar_model_rejected() -> None:
         solve_linear_static_2d(cem, "AC1")
 
 
-def test_member_distributed_load_rejected() -> None:
+def test_member_distributed_out_of_plane_rejected() -> None:
     data = _frame_cem()
     data["loads"][0] = {
         "id": "F1",
         "case_id": "LC1",
         "kind": "member_distributed",
         "target_id": "E1",
-        "values": [0.0, -500.0, 0.0],
+        "values": [0.0, 0.0, -500.0],
         "coordinate_basis": "global",
     }
     cem = CEM.model_validate(data)
-    with pytest.raises(UnsupportedModelError, match="member_distributed"):
+    with pytest.raises(UnsupportedModelError, match="out-of-plane"):
         solve_linear_static_2d(cem, "AC1")
 
 
@@ -134,3 +138,22 @@ def test_unknown_analysis_case_raises() -> None:
     cem = CEM.model_validate(_frame_cem())
     with pytest.raises(AnalysisCaseNotFoundError):
         solve_linear_static_2d(cem, "NOPE")
+
+
+@pytest.mark.parametrize("solve", [solve_linear_static_2d, solve_linear_static_3d])
+def test_frame_end_releases_rejected(solve: Any) -> None:
+    data = _frame_cem()
+    data["materials"][0]["G"] = 8e10
+    data["elements"][0]["releases"] = [False] * 11 + [True]  # moment release at end 2
+    cem = CEM.model_validate(data)
+    with pytest.raises(UnsupportedModelError, match="end releases"):
+        solve(cem, "AC1")
+
+
+@pytest.mark.parametrize("solve", [solve_linear_static_2d, solve_linear_static_3d])
+def test_all_false_releases_accepted(solve: Any) -> None:
+    data = _frame_cem()
+    data["materials"][0]["G"] = 8e10
+    data["elements"][0]["releases"] = [False] * 12
+    cem = CEM.model_validate(data)
+    assert solve(cem, "AC1").displacements["N2"]

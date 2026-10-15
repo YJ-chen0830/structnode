@@ -165,6 +165,16 @@ def validate_topology(cem: CEM) -> ValidationResult:
                     path,
                 )
             )
+        if load.kind == "gravity" and load.target_id not in element_ids | {"*"}:
+            errors.append(
+                Finding(
+                    "CEM-REF-ELEMENT",
+                    Severity.ERROR,
+                    f"Gravity load {load.id!r} targets unknown element {load.target_id!r} "
+                    "(use an element id, or '*' for every element)",
+                    path,
+                )
+            )
 
     for i, ac in enumerate(cem.analysis_cases):
         path = f"analysis_cases[{i}]"

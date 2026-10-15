@@ -80,3 +80,26 @@ def test_rebar_modulus_not_greater_than_element_material_is_warning(
     result = validate_topology(cem)
     assert result.ok  # a warning, not an error
     assert any(f.code == "CEM-REBAR-LOW-MODULUS" for f in result.warnings)
+
+
+def _gravity_load(target_id: str) -> dict[str, Any]:
+    return {
+        "id": "SW",
+        "case_id": "LC1",
+        "kind": "gravity",
+        "target_id": target_id,
+        "values": [0.0, -9.81, 0.0],
+        "coordinate_basis": "global",
+    }
+
+
+def test_gravity_unknown_element_target_is_error(valid_cem_dict: dict[str, Any]) -> None:
+    valid_cem_dict["loads"].append(_gravity_load("NOPE"))
+    result = validate_topology(CEM.model_validate(valid_cem_dict))
+    assert any(f.code == "CEM-REF-ELEMENT" for f in result.errors)
+
+
+def test_gravity_all_elements_target_is_valid(valid_cem_dict: dict[str, Any]) -> None:
+    valid_cem_dict["loads"].append(_gravity_load("*"))
+    result = validate_topology(CEM.model_validate(valid_cem_dict))
+    assert not any(f.code == "CEM-REF-ELEMENT" for f in result.errors)

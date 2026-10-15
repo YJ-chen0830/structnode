@@ -5,8 +5,10 @@ Unlike the 2D solver, there is no planarity restriction here -- full
 (Fx,Fy,Fz)/(Mx,My,Mz) loads and the full 6-DOF-per-node CEM support
 representation apply directly. The S2-era scope guards that still
 apply: a single element type per model (mixed truss/frame is not yet
-supported), `member_distributed`/`gravity` loads, and
-`coordinate_basis="local"` loads are all explicitly rejected.
+supported), frame end releases, and `coordinate_basis="local"` nodal
+loads are explicitly rejected. Uniform member loads
+(`member_distributed`/`gravity`) are turned into fixed-end nodal loads --
+see `structnode.fem.member_loads`.
 """
 
 from __future__ import annotations
@@ -21,12 +23,22 @@ from scipy import sparse
 
 from structnode.core.model import CEM, Material
 from structnode.fem.assembly.errors import UnsupportedModelError
-from structnode.fem.elements.frame3d import frame3d_global_stiffness
+from structnode.fem.assembly.guards import require_no_end_releases
+from structnode.fem.elements.frame3d import (
+    frame3d_global_stiffness,
+    frame3d_local_axes,
+    frame3d_transform_matrix,
+)
 from structnode.fem.elements.truss3d import truss3d_global_stiffness
+from structnode.fem.member_loads import (
+    collect_uniform_loads,
+    frame3d_fixed_end_loads,
+    truss_lumped_warning,
+)
 from structnode.fem.rebar import effective_section_properties
 
 ElementKind = Literal["truss", "frame"]
-SUPPORTED_LOAD_KINDS = frozenset({"nodal_force", "nodal_moment"})
+SUPPORTED_LOAD_KINDS = frozenset({"nodal_force", "nodal_moment", "member_distributed", "gravity"})
 
 
 @dataclass
@@ -71,6 +83,7 @@ def _frame_dofs(i: int, j: int) -> tuple[int, ...]:
 
 def build_model_3d(cem: CEM) -> Model3D:
     element_kind = require_homogeneous_element_kind(cem)
+    require_no_end_releases(cem, "S3 native 3D solver")
     dof_per_node = 3 if element_kind == "truss" else 6
 
     node_order = [n.id for n in cem.nodes]
@@ -131,10 +144,57 @@ def build_model_3d(cem: CEM) -> Model3D:
     )
 
 
-def build_load_vector(
-    cem: CEM, model: Model3D, case_factors: Mapping[str, float]
-) -> NDArray[np.float64]:
-    f = np.zeros(model.ndof, dtype=np.float64)
+@dataclass
+class LoadVector3D:
+    f: NDArray[np.float64]
+    """Global nodal load vector, including member-load equivalents."""
+    fixed_end_local: dict[str, NDArray[np.float64]] = field(default_factory=dict)
+    """Per-frame-element equivalent nodal loads in local axes (12 entries) --
+    subtracted from k @ u during end-force recovery."""
+    warnings: list[str] = field(default_factory=list)
+
+
+def _add_member_loads(
+    cem: CEM, model: Model3D, case_factors: Mapping[str, float], out: LoadVector3D
+) -> None:
+    nodes_by_id = {n.id: n for n in cem.nodes}
+    elements = {el.id: el for el in cem.elements}
+    sections = {s.id: s for s in cem.sections}
+    for el_id, load in collect_uniform_loads(cem, case_factors).items():
+        el = elements[el_id]
+        n1, n2 = nodes_by_id[el.node_ids[0]], nodes_by_id[el.node_ids[1]]
+        i, j = model.node_index[n1.id], model.node_index[n2.id]
+
+        if model.element_kind == "truss":
+            if np.any(load.w_local != 0.0):
+                raise UnsupportedModelError(
+                    f"Element {el_id!r}: coordinate_basis='local' member loads need "
+                    "a member orientation, which 3D truss elements don't define; "
+                    "give the load in global axes"
+                )
+            length = float(np.linalg.norm(np.subtract(n2.position, n1.position)))
+            half = 0.5 * length * load.w_global
+            for k, gi in enumerate(_truss_dofs(i, j)):
+                out.f[gi] += half[k % 3]
+            out.warnings.append(truss_lumped_warning(el_id))
+            continue
+
+        local_x, local_y, local_z, length, _ = frame3d_local_axes(
+            *n1.position, *n2.position, sections[el.section_id].local_axis_hint
+        )
+        rot = np.vstack([local_x, local_y, local_z])  # global -> local
+        wx, wy, wz = rot @ load.w_global + load.w_local
+        f_local = frame3d_fixed_end_loads(float(wx), float(wy), float(wz), length)
+        f_global = frame3d_transform_matrix(local_x, local_y, local_z).T @ f_local
+        out.fixed_end_local[el_id] = f_local
+        for k, gi in enumerate(_frame_dofs(i, j)):
+            out.f[gi] += f_global[k]
+
+
+def build_load_vector(cem: CEM, model: Model3D, case_factors: Mapping[str, float]) -> LoadVector3D:
+    out = LoadVector3D(f=np.zeros(model.ndof, dtype=np.float64))
+    f = out.f
+    _add_member_loads(cem, model, case_factors, out)
 
     for load in cem.loads:
         if load.case_id not in case_factors:
@@ -142,10 +202,10 @@ def build_load_vector(
         factor = case_factors[load.case_id]
         if load.kind not in SUPPORTED_LOAD_KINDS:
             raise UnsupportedModelError(
-                f"Load {load.id!r}: kind {load.kind!r} is not supported by the S3 "
-                "native 3D solver (only nodal_force/nodal_moment -- "
-                "member_distributed/gravity are a later milestone)"
+                f"Load {load.id!r}: kind {load.kind!r} is not supported by the S3 native 3D solver"
             )
+        if load.kind in ("member_distributed", "gravity"):
+            continue  # handled by _add_member_loads
         if load.coordinate_basis != "global":
             raise UnsupportedModelError(
                 f"Load {load.id!r}: only coordinate_basis='global' is supported "
@@ -169,4 +229,4 @@ def build_load_vector(
                 )
             f[base + 3 : base + 6] += factor * np.asarray(load.values, dtype=np.float64)
 
-    return f
+    return out
